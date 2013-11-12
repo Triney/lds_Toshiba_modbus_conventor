@@ -1,0 +1,45 @@
+[Open Files]
+Active File Display Mode=3
+Active File Index=2
+Open File Line0=544
+Open File Line1=2340
+Open File Line2=0
+Open File Line3=3972
+Open File Line4=3616
+Open File Line5=1480
+Open File Line6=192
+Open File Line7=2319
+Open File Pos0=608
+Open File Pos1=2340
+Open File Pos2=6174
+Open File Pos3=4669
+Open File Pos4=0
+Open File Pos5=747
+Open File Pos6=2863
+Open File Pos7=0
+Open File Window Pos0=0,1,-1,-1,-4,-30,0,0,702,396
+Open File Window Pos1=0,1,-1,-1,-4,-30,44,58,750,458
+Open File Window Pos2=2,3,-1,-1,-4,-30,66,87,772,458
+Open File Window Pos3=0,1,-1,-1,-4,-30,88,116,794,487
+Open File Window Pos4=0,1,-1,-1,-4,-30,110,145,816,516
+Open File Window Pos5=0,1,-1,-1,-4,-30,132,174,838,545
+Open File Window Pos6=0,1,-1,-1,-4,-30,0,0,728,303
+Open File Window Pos7=0,1,-1,-1,-4,-30,44,58,1124,372
+Open File0=.\Main.h
+Open File1=C:\Program Files\LDS\智能照明控制系统\BLight.evt
+Open File2=.\Main.C
+Open File3=.\Comm.C
+Open File4=E:\DALITEK\hotel_room\temperature\temperature_eeprom\temperature.inc
+Open File5=E:\DALITEK\hotel_room\temperature\temperature_eeprom\temperature.asm
+Open File6=.\IIC_R_W.C
+Open File7=.\M3-ADD.inc
+Open File8=
+
+[Project Information]
+Project Start=DA07060000000D00150010002700000040
+Working Time=160
+
+[Folders]
+c_code=1
+inc=1
+

@@ -1,0 +1,6 @@
+"STARTUP.obj",
+"Main.obj",
+"IIC_R_W.obj",
+"Comm.obj" 
+TO "yian_huar_0318" 
+RAMSIZE(256) 

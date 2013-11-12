@@ -1,0 +1,640 @@
+C51 COMPILER V9.02   C8051F340_MODBUS                                                      04/03/2013 10:13:53 PAGE 1   
+
+
+C51 COMPILER V9.02, COMPILATION OF MODULE C8051F340_MODBUS
+OBJECT MODULE PLACED IN c8051f340-modbus.OBJ
+COMPILER INVOKED BY: C:\Keil\C51\BIN\C51.EXE c8051f340-modbus.c BROWSE DEBUG OBJECTEXTEND
+
+line level    source
+
+   1          //modbus通信协议实现
+   2          //
+   3          
+   4          #include <c8051f340.h>            
+   5          #include <intrins.h>
+   6          //-----------------------------------------------------------------------------
+   7          // Global CONSTANTS
+   8          //-----------------------------------------------------------------------------
+   9          #define BaudRate       9600//9600,14400,19200,38400,56000可选        
+  10          #define SYSCLK         12000000    
+  11          //#define BAUDRATE     9600         
+  12          //#define SYSCLK       11059200     
+  13          sbit GREEN = P2^5;
+  14          sbit RED   = P2^4;
+  15          sbit PF    = P2^1;
+  16          //-----------------------------------------------------------------------------
+  17          // Function PROTOTYPES
+  18          //-----------------------------------------------------------------------------
+  19          
+  20          #define uint16 unsigned int
+  21          #define uint8 unsigned char
+  22          #define   MAXNByte  15   //最大字节数
+  23          //#define  time0      30000
+  24          #define  MAXREG     100   //最大寄存器数量
+  25          
+  26          //void SYSCLK_Init (void);
+  27          void PORT_Init (void);   //IO口初始化
+  28          void UART0_Init (void);   //uart0初始化
+  29          
+  30          void readRegisters(void) ;//读寄存器,功能码03
+  31          void beginSend(void) ;    //发送子程序
+  32          void presetMultipleRegisters(void);//设置多个寄存器,功能码16
+  33          void FLASH_ByteWrite(uint16 addr, uint8 byte);//flash写
+  34          void FLASH_PageErase (uint16 addr);        //flash页擦写
+  35          //void Receive_timeout(void);             //超时子程序
+  36          uint16 crc_chk(uint8 *dat,uint8 length);         //CRC校验
+  37          uint8 FLASH_ByteRead (uint16 addr);           //flash读
+  38          //void presetSingleRegisters(void);       //设置单个寄存器,功能码06
+  39          void send_err(uint8 err,uint8 err_code);       //发送错误
+  40          void Timer0_Init(void);                  //定时器0初始化
+  41          void PCA_Init();
+  42          uint16 flag;
+  43          uint8 temp_crc;
+  44          uint8 count_receiveNByte;//接收字节数
+  45          uint8 xdata mod_buf[20];       //modubs 数据接收缓冲区
+  46          uint8 xdata sendBuf[20];       //发送缓冲区
+  47          uint8 sendCount;         //发送字节数
+  48          uint8 localAddr = 3;     //单片机控制板的地址
+  49          //uint16 Receivetimeout;    //定时初值
+  50          //bit ReceiveBit;    
+  51          
+  52          //unsigned int  code  baud_code[8] = {};
+  53          /*?????*/
+  54          /*void delay(unsigned int m)
+  55          {
+C51 COMPILER V9.02   C8051F340_MODBUS                                                      04/03/2013 10:13:53 PAGE 2   
+
+  56           unsigned int n;
+  57           n=0;
+  58           while(n < m)
+  59           {n++;}
+  60           return;
+  61          }  */
+  62          //-----------------------------------------------------------------------------
+  63          // MAIN Routine
+  64          //-----------------------------------------------------------------------------
+  65          
+  66          /*
+  67          void main(void)
+  68          {
+  69             uint16 dat;
+  70             uint16 tempData;
+  71             uint16 crcData;
+  72             PCA0MD    &= ~0x40;                    
+  73             OSCICN    |= 0x03; 
+  74          
+  75             //SYSCLK_Init ();                     
+  76              PORT_Init ();                       
+  77              UART0_Init (); 
+  78              PCA_Init();                    
+  79          //      Timer0_Init();
+  80              EA=1;
+  81              ES0=1;
+  82                  PS0=1;
+  83                  GREEN=1;     
+  84              RED=0;
+  85           while(1){
+  86            if (mod_buf[0]==localAddr)
+  87            { 
+  88               if(count_receiveNByte>4) 
+  89                  {
+  90          
+  91          
+  92              switch(mod_buf[1])
+  93                  {
+  94                 case 0x03:
+  95                                      if(count_receiveNByte>=8)
+  96                                              { 
+  97                                                    crcData = crc_chk(mod_buf,6);  //CRC校验
+  98                                    dat=mod_buf[7];
+  99                                    if(crcData==mod_buf[6]+(dat<<8)) //CRC校验结果比较
+ 100                                  
+ 101                                        readRegisters();         // 如果检验正确，那么就回应数据
+ 102                                                                    count_receiveNByte=0;     //接受数据指针归零   
+ 103                                                           
+ 104                                   }
+ 105                              break;
+ 106                              
+ 107                           
+ 108          /*      case 0x06:
+ 109                         if(count_receiveNByte>=8)
+ 110                                          { 
+ 111                                               crcData = crc_chk(mod_buf,6);  //CRC校验
+ 112                                                   dat=mod_buf[7];
+ 113                             if(crcData==mod_buf[6]+(dat<<8)) //CRC校验结果比较
+ 114                               
+ 115                                      presetSingleRegisters();
+ 116                              count_receiveNByte=0;     //接受数据指针归零  
+ 117                                         }
+C51 COMPILER V9.02   C8051F340_MODBUS                                                      04/03/2013 10:13:53 PAGE 3   
+
+ 118                             break;*/
+ 119          /*          case 0x10:
+ 120                                     dat=mod_buf[4];
+ 121                             tempData = (dat<<8) + mod_buf[5];
+ 122                             tempData = tempData * 2; //数据个数
+ 123                             tempData += 9;
+ 124                          if(count_receiveNByte >= tempData)
+ 125                           {
+ 126                            
+ 127                               crcData = crc_chk(mod_buf,tempData-2);
+ 128                               dat=mod_buf[tempData-1];
+ 129                              if(crcData == (dat<<8)+ mod_buf[tempData-2])
+ 130                                
+ 131                                          presetMultipleRegisters();
+ 132                                                          count_receiveNByte=0;     //接受数据指针归零   
+ 133                                                  
+ 134                                           }
+ 135                                            break; 
+ 136                           default:
+ 137                            break; 
+ 138                   }
+ 139                                          
+ 140          
+ 141             }
+ 142             
+ 143                   
+ 144            }
+ 145            else
+ 146              count_receiveNByte=0;     //接受数据指针归零
+ 147            _nop_();
+ 148          //    Receive_timeout();
+ 149             PCA0CPH4 = 0x00;
+ 150           }
+ 151          }
+ 152          
+ 153          //-----------------------------------------------------------------------------
+ 154          // SYSCLK_Init
+ 155          //-----------------------------------------------------------------------------
+ 156          //
+ 157          // This routine initializes the system clock to use an 22.1184MHz crystal
+ 158          // as its clock source.
+ 159          //
+ 160          //void SYSCLK_Init (void)
+ 161          //{
+ 162          //   int i;                              
+ 163          
+ 164          //   OSCXCN = 0x67;                     
+ 165           //  for (i=0; i < 256; i++) ;         
+ 166          
+ 167          //   while (!(OSCXCN & 0x80)) ;          
+ 168          
+ 169          //   OSCICN = 0x88;                     
+ 170          //}
+ 171          
+ 172          //-----------------------------------------------------------------------------
+ 173          // PORT_Init
+ 174          //-----------------------------------------------------------------------------
+ 175          //
+ 176          // Configure the Crossbar and GPIO ports
+ 177          //
+ 178           */
+ 179          void PCA_Init()
+C51 COMPILER V9.02   C8051F340_MODBUS                                                      04/03/2013 10:13:53 PAGE 4   
+
+ 180          {
+ 181   1          PCA0CN     =  0x40;                // PCA counter enable
+ 182   1          PCA0MD    &= ~0x40 ;               // Watchdog timer disabled-clearing bit 6
+ 183   1          PCA0MD    &=  0xF1;                // timebase selected - System clock / 12
+ 184   1          PCA0CPL4   =  0xFF;                // Offset value
+ 185   1          PCA0MD  |= 0x40;
+ 186   1          PCA0L    = 0x00;                       // Set lower byte of PCA counter to 0  
+ 187   1          PCA0H    = 0x00; 
+ 188   1      }
+ 189          
+ 190          void PORT_Init (void)
+ 191          {
+ 192   1         XBR0    = 0x01;                      //UART TX0, RX0连到端口引脚P0.4和P0.5
+ 193   1         XBR1    = 0x40;
+ 194   1         XBR2    = 0x00;                     //UART1的I/O不连到端口引?
+ 195   1         P0MDOUT |= 0x01;                    //TX0输出为推挽方式
+ 196   1         P2MDOUT |= 0x3f;                   
+ 197   1         P1MDOUT |= 0xff;
+ 198   1      //   P0SKIP  |= 0xc0;
+ 199   1      }
+ 200          
+ 201          //-----------------------------------------------------------------------------
+ 202          // UART0_Init
+ 203          //-----------------------------------------------------------------------------
+ 204          //
+ 205          // Configure the UART0 using Timer1, for <baudrate> and 8-N-1.
+ 206          //
+ 207          void UART0_Init (void)
+ 208          {
+ 209   1          SCON0   = 0x50;                    
+ 210   1          TMOD    = 0x20;                    
+ 211   1              if(BaudRate > 38400)                 
+ 212   1              {
+ 213   2                      CKCON  = 0x08;                      //定时器使用系统时钟
+ 214   2                      TH1    = 256-SYSCLK/2/BaudRate;
+ 215   2              }
+ 216   1              if(BaudRate <= 38400) 
+ 217   1              {
+ 218   2                      CKCON  = 0x01;                      //定时器时钟用系统时钟的4分频
+ 219   2                      TH1    = 256-SYSCLK/4/2/BaudRate;
+ 220   2              }
+ 221   1         TL1=TH1;
+ 222   1         TR1    = 1;                        
+ 223   1         CKCON |= 0x01;                      //定时器时钟用系统时钟的4分频
+ 224   1         PF=0;
+ 225   1      }
+ 226          
+ 227          /*void Timer0_Init(void)
+ 228          {
+ 229           TMOD |= 0x01;        // 定时器0: 方式1,16位定时器
+ 230           TF0=0;        
+ 231           TR0=1;// TR0
+ 232           CKCON |= 0x10;        // 
+ 233           TH0 = 0xf1; //256 -((60*SYSCLK/1000/12)/256);
+ 234           TL0 = 0xc2;//256 -((60*SYSCLK/1000/12)%256);
+ 235           ET0=1;
+ 236          }
+ 237          
+ 238          void timer0() interrupt 1 using 2 //定时器中断
+ 239          {   
+ 240              TF0=0;
+ 241              TR0=0;
+C51 COMPILER V9.02   C8051F340_MODBUS                                                      04/03/2013 10:13:53 PAGE 5   
+
+ 242              TH0=0xf1;    //3.646ms interrupt
+ 243              TL0=0xc2;
+ 244              flag++;
+ 245                  if(flag==15)
+ 246                   {
+ 247                     flag=0;
+ 248                 if(count_receiveNByte<=2)    //超时后，若接收缓冲区有数则判断为收到一帧
+ 249                 {
+ 250                        count_receiveNByte=0;     //接受数据指针归零   ;
+ 251                 }
+ 252                    }
+ 253                  TR0=1;
+ 254          }
+ 255          /***********************************************************
+ 256          CRC校验
+ 257          ***************************************************************/
+ 258          uint16 crc_chk(uint8 *pData,uint8 nLen)
+ 259          {
+ 260   1      uint16 temp_crc=0xffff,temp1,i,j;
+ 261   1       for(i=0;i<nLen;i++)
+ 262   1          {
+ 263   2          temp_crc^=*(pData+i);
+ 264   2              for(j=0;j<8;j++)
+ 265   2                      {
+ 266   3                      temp1=temp_crc;
+ 267   3                      temp_crc>>=1;
+ 268   3                      if(temp1&0x0001)
+ 269   3                              temp_crc^=0xa001;
+ 270   3              }
+ 271   2          }
+ 272   1      return(temp_crc);
+ 273   1      }
+ 274          
+ 275          /*功能码03读*/
+ 276          void readRegisters(void)
+ 277          {
+ 278   1         uint16 addr;
+ 279   1         uint16 tempAddr;
+ 280   1      // uint16 result;
+ 281   1         uint16 crcData;
+ 282   1         uint8 readCount;
+ 283   1         uint8 byteCount;
+ 284   1      
+ 285   1      // uint8  finsh; //
+ 286   1         uint8 i;
+ 287   1         uint16 tempData = 0; 
+ 288   1         tempData=mod_buf[2];
+ 289   1         addr = (tempData<<8) + mod_buf[3];
+ 290   1         tempAddr = addr ;//& 0xfff; 
+ 291   1         //addr = mod_buf[3];
+ 292   1         //tempAddr = addr;
+ 293   1      
+ 294   1       //readCount = (receBuf[4]<<8) + receBuf[5]; 
+ 295   1         readCount  = mod_buf[5];
+ 296   1         if(readCount<MAXREG)
+ 297   1         {
+ 298   2             byteCount = readCount* 2 ;//;
+ 299   2       
+ 300   2            for(i=0;i<byteCount;i++,tempAddr++)
+ 301   2            {
+ 302   3                tempData=FLASH_ByteRead(tempAddr);
+ 303   3                //getRegisterVal(tempAddr,&tempData);    
+C51 COMPILER V9.02   C8051F340_MODBUS                                                      04/03/2013 10:13:53 PAGE 6   
+
+ 304   3                sendBuf[i+3] = tempData;// & 0xff; 
+ 305   3        
+ 306   3             }
+ 307   2       
+ 308   2             sendBuf[0] = localAddr;
+ 309   2             sendBuf[1] = 3;
+ 310   2             sendBuf[2] = byteCount;
+ 311   2             byteCount += 3;
+ 312   2             crcData = crc_chk(sendBuf,byteCount);
+ 313   2             sendBuf[byteCount] = crcData & 0xff;
+ 314   2             byteCount++;
+ 315   2             sendBuf[byteCount] =  crcData >> 8;
+ 316   2      
+ 317   2             sendCount = byteCount + 1;
+ 318   2             beginSend();
+ 319   2         }
+ 320   1         else
+ 321   1              {
+ 322   2      
+ 323   2                  send_err(0x83,0x03); 
+ 324   2          }
+ 325   1      }//void readRegisters(void)
+ 326          
+ 327          /*****************************************************************
+ 328          功能码6 设置单个寄存器
+ 329          ******************************************************************
+ 330          void presetSingleRegisters(void)
+ 331          {
+ 332           uint16 addr;
+ 333           uint16 tempAddr;
+ 334          
+ 335          
+ 336           uint16 crcData;
+ 337           uint16 tempData;
+ 338          // uint8  finsh; //为1时完成 为0时出错
+ 339          
+ 340           tempData=mod_buf[2];
+ 341           addr = (tempData<<8) + mod_buf[3];
+ 342            tempAddr = addr;// & 0xfff;
+ 343            //addr = mod_buf[3];
+ 344            //tempAddr = addr & 0xff;
+ 345          
+ 346            //setCount = (receBuf[4]<<8) + receBuf[5];
+ 347            //setCount = mod_buf[5];
+ 348            //byteCount = mod_buf[6]; 
+ 349           
+ 350               FLASH_PageErase (tempAddr);
+ 351          
+ 352          //    tempData = (modbuf[i*2+7]<<8) + modbuf[i*2+8];
+ 353                tempData=mod_buf[4];
+ 354          //    setRegisterVal(tempAddr,tempData); 
+ 355                FLASH_ByteWrite (tempAddr, tempData);
+ 356                    sendBuf[4] = tempData ; 
+ 357                    tempData=mod_buf[5];
+ 358                    FLASH_ByteWrite (tempAddr+1, tempData);         
+ 359                sendBuf[5] = tempData;
+ 360           
+ 361          
+ 362           sendBuf[0] = localAddr;
+ 363           sendBuf[1] = 6;
+ 364           sendBuf[2] = addr >> 8;
+ 365           sendBuf[3] = addr & 0xff;
+C51 COMPILER V9.02   C8051F340_MODBUS                                                      04/03/2013 10:13:53 PAGE 7   
+
+ 366           crcData = crc_chk(sendBuf,6);
+ 367           sendBuf[6] = crcData & 0xff;
+ 368           sendBuf[7] = crcData >> 8;
+ 369           sendCount = 8;
+ 370           beginSend(); 
+ 371          }
+ 372          
+ 373          /****************************************************************
+ 374          功能码16，设置多个功能寄存器
+ 375          ******************************************************************/
+ 376          void presetMultipleRegisters(void)
+ 377          {
+ 378   1      
+ 379   1       uint16 addr;
+ 380   1       uint16 tempAddr;
+ 381   1       uint8 byteCount;
+ 382   1       uint8 setCount;
+ 383   1       uint16 crcData;
+ 384   1       uint16 tempData;
+ 385   1      // uint8  finsh; //为1时完成 为0时出错
+ 386   1       uint8 i;
+ 387   1       
+ 388   1       //addr = mod_buf[3];
+ 389   1       tempData=mod_buf[2];
+ 390   1       addr = (tempData<<8) + mod_buf[3];
+ 391   1       tempAddr = addr;// & 0xfff;
+ 392   1       
+ 393   1       //tempAddr = addr & 0xff;
+ 394   1      
+ 395   1       //setCount = (receBuf[4]<<8) + receBuf[5];
+ 396   1       setCount = mod_buf[5];
+ 397   1       if(setCount<=0x78)
+ 398   1      {
+ 399   2        byteCount = mod_buf[6]; 
+ 400   2       
+ 401   2      
+ 402   2       sendBuf[0] = localAddr;
+ 403   2       sendBuf[1] = 16;
+ 404   2       sendBuf[2] = addr >> 8;
+ 405   2       sendBuf[3] = addr & 0xff;
+ 406   2       sendBuf[4] = setCount >> 8;
+ 407   2       sendBuf[5] = setCount & 0xff;
+ 408   2       crcData = crc_chk(sendBuf,6);
+ 409   2       sendBuf[6] = crcData & 0xff;
+ 410   2       sendBuf[7] = crcData >> 8;
+ 411   2       sendCount = 8;
+ 412   2       beginSend();
+ 413   2       
+ 414   2          FLASH_PageErase (0x7c00);
+ 415   2      
+ 416   2         for(i=0;i<byteCount;i++,tempAddr++)
+ 417   2         {
+ 418   3      //    tempData = (modbuf[i*2+7]<<8) + modbuf[i*2+8];
+ 419   3            tempData=mod_buf[7+i];
+ 420   3      //    setRegisterVal(tempAddr,tempData); 
+ 421   3      
+ 422   3            FLASH_ByteWrite (tempAddr, tempData);
+ 423   3         }
+ 424   2      
+ 425   2       }
+ 426   1       else//寄存器数量>120
+ 427   1         {
+C51 COMPILER V9.02   C8051F340_MODBUS                                                      04/03/2013 10:13:53 PAGE 8   
+
+ 428   2      
+ 429   2           send_err(0x90,0x03);
+ 430   2       
+ 431   2         }
+ 432   1       
+ 433   1      }//void presetMultipleRegisters(void)
+ 434          
+ 435          
+ 436          
+ 437          
+ 438          /*UART0中断处理*/
+ 439          /*
+ 440          void UART0_ISR (void) interrupt 4
+ 441          {
+ 442           ES0=0;
+ 443           if(!TI0)              
+ 444             {
+ 445          //    Receivetimeout=time0;
+ 446              RI0 = 0;  
+ 447              mod_buf[count_receiveNByte] = SBUF0; //获取数据 
+ 448             count_receiveNByte++;       //接收字节数目
+ 449          //   Receivetimeout=350;  
+ 450            if(count_receiveNByte >= MAXNByte)   //如果接收满
+ 451             count_receiveNByte = 0;     //接受满 归0  
+ 452             
+ 453             }
+ 454            TI0 = 0;    
+ 455            ES0=1;
+ 456          }                        */
+ 457          //发送子程序
+ 458          void beginSend(void) 
+ 459          {       uint8 i;
+ 460   1              ES0=0;
+ 461   1              GREEN=0;
+ 462   1                      RED=1;
+ 463   1                      PF=1;          //485允许发送
+ 464   1              for(i=0;i<sendCount;i++)
+ 465   1             {
+ 466   2                      //奇偶校验
+ 467   2                  ACC=sendBuf[i] ;
+ 468   2                      TB80=P;
+ 469   2              SBUF0 = sendBuf[i];
+ 470   2              while(TI0==0);
+ 471   2              TI0=0;
+ 472   2             }
+ 473   1                 PF=0;           //485允许接收
+ 474   1                 GREEN=1;
+ 475   1                 RED=0;
+ 476   1                 ES0=1;
+ 477   1      }
+ 478          
+ 479          void send_err(uint8 err,uint8 err_code)//发送错误
+ 480          {
+ 481   1        uint16 crc_tmp;
+ 482   1              
+ 483   1        sendBuf[0]=localAddr;
+ 484   1        sendBuf[1]=err;
+ 485   1        sendBuf[2]=err_code;
+ 486   1        crc_tmp=crc_chk(mod_buf,3);
+ 487   1        sendBuf[3]=crc_tmp;
+ 488   1        sendBuf[4]=crc_tmp>>8;
+ 489   1        sendCount=5;
+C51 COMPILER V9.02   C8051F340_MODBUS                                                      04/03/2013 10:13:53 PAGE 9   
+
+ 490   1        beginSend();  
+ 491   1        
+ 492   1      }
+ 493          /*****************************************************
+ 494          接收超时判断
+ 495          调用条件：
+ 496           ((Receivetime_flag=1)&&(count_receiveNByte>0))  1ms定时时间到
+ 497          并且 有接收到的字符，调用此模块，判定是否接收超时
+ 498          *****************************************************/
+ 499           /*
+ 500          void Receive_timeout(void)
+ 501          {
+ 502           Receivetimeout--;
+ 503           if((Receivetimeout==0)&&(count_receiveNByte>0)) //说明接收超时
+ 504            {
+ 505             count_receiveNByte=0;     //接受数据指针归零
+ 506             SCON0|=0x10;       //允许UART0接收，REN0=1;
+ 507            }
+ 508          }
+ 509           */
+ 510          
+ 511          void FLASH_PageErase (uint16 addr)
+ 512          {
+ 513   1         bit EA_SAVE = EA;                   // Preserve EA
+ 514   1         char xdata * data pwrite;           // FLASH write pointer
+ 515   1      
+ 516   1         EA = 0;                             // Disable interrupts
+ 517   1         // change clock speed to slow, then restore later
+ 518   1      
+ 519   1         VDM0CN = 0x80;                      // Enable VDD monitor
+ 520   1              
+ 521   1         RSTSRC |= 0x02;                      // enable VDD monitor as a reset source
+ 522   1      
+ 523   1        
+ 524   1         FLKEY  = 0xA5;                      // Key Sequence 1
+ 525   1         FLKEY  = 0xF1;                      // Key Sequence 2
+ 526   1         PSCTL |= 0x03;                      // PSWE = 1; PSEE = 1
+ 527   1      
+ 528   1      
+ 529   1         VDM0CN = 0x80;                      // Enable VDD monitor
+ 530   1      
+ 531   1         RSTSRC |= 0x02;                      // Enable VDD monitor as a reset source
+ 532   1      
+ 533   1         pwrite = (char xdata *) addr;
+ 534   1      
+ 535   1         VDM0CN = 0x80;                      // Enable VDD monitor
+ 536   1              
+ 537   1         *pwrite = 0;                        // Initiate page erase
+ 538   1      
+ 539   1         PSCTL &= ~0x03;                     // PSWE = 0; PSEE = 0
+ 540   1      
+ 541   1         EA = EA_SAVE;                       // Restore interrupts
+ 542   1      }
+ 543          /********************************************************************
+ 544          读寄存器值
+ 545          ********************************************************************/
+ 546          uint8 FLASH_ByteRead (uint16 addr)
+ 547          {
+ 548   1         bit EA_SAVE = EA;                   // Preserve EA
+ 549   1         char code * data pread;             // FLASH read pointer
+ 550   1         unsigned char byte;
+ 551   1      
+C51 COMPILER V9.02   C8051F340_MODBUS                                                      04/03/2013 10:13:53 PAGE 10  
+
+ 552   1         EA = 0;                             // Disable interrupts
+ 553   1      
+ 554   1         pread = (char code *) addr;
+ 555   1      
+ 556   1         byte = *pread;                      // Read the byte
+ 557   1      
+ 558   1         EA = EA_SAVE;                       // Restore interrupts
+ 559   1      
+ 560   1         return byte;
+ 561   1      }
+ 562          /************************************************************
+ 563          Flash写
+ 564          ************************************************************/
+ 565          void FLASH_ByteWrite (uint16 addr, uint8 byte)
+ 566          {
+ 567   1         bit EA_SAVE = EA;                   // Preserve EA
+ 568   1         char xdata * data pwrite;           // FLASH write pointer
+ 569   1      
+ 570   1         EA = 0;                             // Disable interrupts
+ 571   1      
+ 572   1         // change clock speed to slow, then restore later
+ 573   1      
+ 574   1         VDM0CN = 0x80;                      // Enable VDD monitor
+ 575   1      
+ 576   1         RSTSRC |= 0x02;                      // Enable VDD monitor as a reset source
+ 577   1      
+ 578   1         pwrite = (char xdata *) addr;
+ 579   1      
+ 580   1         PFE0CN &= 0XFE;              //设定单字节写入FLASH方式
+ 581   1      
+ 582   1         PSCTL |= 0x01;                      // PSWE = 1
+ 583   1         FLKEY  = 0xA5;                      // Key Sequence 1
+ 584   1         FLKEY  = 0xF1;                      // Key Sequence 2
+ 585   1      
+ 586   1         VDM0CN = 0x80;                      // Enable VDD monitor
+ 587   1      
+ 588   1      
+ 589   1         RSTSRC |= 0x02;                      // Enable VDD monitor as a reset source
+ 590   1      
+ 591   1         VDM0CN = 0x80;                      // Enable VDD monitor
+ 592   1      
+ 593   1         *pwrite = byte;                     // Write the byte
+ 594   1      
+ 595   1         PSCTL &= ~0x01;                     // PSWE = 0
+ 596   1      
+ 597   1         EA = EA_SAVE;                       // Restore interrupts
+ 598   1      }
+ 599          
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =    662    ----
+   CONSTANT SIZE    =   ----    ----
+   XDATA SIZE       =     40    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =      6      16
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----       3
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

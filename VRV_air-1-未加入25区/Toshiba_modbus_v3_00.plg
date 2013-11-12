@@ -1,0 +1,73 @@
+<html>
+<body>
+<pre>
+<h1>礦ision Build Log</h1>
+<h2>Project:</h2>
+F:\lds\项目（codes）\modbus\Toshiba modbus\VRV_air-1-未加入25区\jinling.uvproj
+Project File Date:  11/06/2013
+
+<h2>Output:</h2>
+Load "F:\\lds\\项目（codes）\\modbus\\Toshiba modbus\\VRV_air-1-未加入25区\\Toshiba_modbus_v3_00" 
+Flash Erase Done.
+Flash Image Update Complete. 
+Beginning programming...
+Flash Program Done: 6529 bytes programmed.
+Checksum:0xfef4
+Flash Verify Done: 6529 bytes verified.
+Build target 'Target 1'
+compiling Comm.C...
+Comm.C(210): warning C280: 'set_temp': unreferenced local variable
+Comm.C(238): warning C280: 'temp1': unreferenced local variable
+Comm.C(238): warning C280: 'temp2': unreferenced local variable
+Comm.C(238): warning C280: 'temp3': unreferenced local variable
+Comm.C(241): warning C280: 'temp_param': unreferenced local variable
+linking...
+*** WARNING L16: UNCALLED SEGMENT, IGNORED FOR OVERLAY PROCESS
+    SEGMENT: ?PR?RESEND_MSG_PROC?COMM
+Program Size: data=94.0 xdata=1448 code=6526
+creating hex file from "Toshiba_modbus_v3_00"...
+"Toshiba_modbus_v3_00" - 0 Error(s), 6 Warning(s).
+Load "F:\\lds\\项目（codes）\\modbus\\Toshiba modbus\\VRV_air-1-未加入25区\\Toshiba_modbus_v3_00" 
+Load "F:\\lds\\项目（codes）\\modbus\\Toshiba modbus\\VRV_air-1-未加入25区\\Toshiba_modbus_v3_00" 
+Load "F:\\lds\\项目（codes）\\modbus\\Toshiba modbus\\VRV_air-1-未加入25区\\Toshiba_modbus_v3_00" 
+Flash Erase Done.
+Flash Image Update Complete. 
+Beginning programming...
+Flash Program Done: 6526 bytes programmed.
+Checksum:0xfd39
+Flash Verify Done: 6526 bytes verified.
+Build target 'Target 1'
+compiling Comm.C...
+Comm.C(210): warning C280: 'set_temp': unreferenced local variable
+Comm.C(238): warning C280: 'temp1': unreferenced local variable
+Comm.C(238): warning C280: 'temp2': unreferenced local variable
+Comm.C(238): warning C280: 'temp3': unreferenced local variable
+Comm.C(241): warning C280: 'temp_param': unreferenced local variable
+linking...
+*** WARNING L16: UNCALLED SEGMENT, IGNORED FOR OVERLAY PROCESS
+    SEGMENT: ?PR?RESEND_MSG_PROC?COMM
+Program Size: data=94.0 xdata=1448 code=6518
+creating hex file from "Toshiba_modbus_v3_00"...
+"Toshiba_modbus_v3_00" - 0 Error(s), 6 Warning(s).
+Load "F:\\lds\\项目（codes）\\modbus\\Toshiba modbus\\VRV_air-1-未加入25区\\Toshiba_modbus_v3_00" 
+Load "F:\\lds\\项目（codes）\\modbus\\Toshiba modbus\\VRV_air-1-未加入25区\\Toshiba_modbus_v3_00" 
+Flash Erase Done.
+Flash Image Update Complete. 
+Beginning programming...
+Flash Program Done: 6518 bytes programmed.
+Checksum:0xf54f
+Flash Verify Done: 6518 bytes verified.
+Build target 'Target 1'
+linking...
+*** WARNING L16: UNCALLED SEGMENT, IGNORED FOR OVERLAY PROCESS
+    SEGMENT: ?PR?RESEND_MSG_PROC?COMM
+Program Size: data=94.0 xdata=1448 code=6518
+creating hex file from "Toshiba_modbus_v3_00"...
+"Toshiba_modbus_v3_00" - 0 Error(s), 1 Warning(s).
+Load "F:\\lds\\项目（codes）\\modbus\\Toshiba modbus\\VRV_air-1-未加入25区\\Toshiba_modbus_v3_00" 
+Flash Erase Done.
+Flash Image Update Complete. 
+Beginning programming...
+Flash Program Done: 6518 bytes programmed.
+Checksum:0xf54f
+Flash Verify Done: 6518 bytes verified.

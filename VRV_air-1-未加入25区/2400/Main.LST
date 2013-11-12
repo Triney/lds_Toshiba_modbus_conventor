@@ -1,0 +1,499 @@
+C51 COMPILER V8.18   MAIN                                                                  04/06/2012 13:33:25 PAGE 1   
+
+
+C51 COMPILER V8.18, COMPILATION OF MODULE MAIN
+OBJECT MODULE PLACED IN Main.OBJ
+COMPILER INVOKED BY: C:\Keil\C51\BIN\C51.EXE Main.C BROWSE DEBUG OBJECTEXTEND TABS(8)
+
+line level    source
+
+   1          /***********************************************************************
+   2          
+   3                                金陵饭店和台湾按键  接口程序
+   4          
+   5                  CPU       : CF340
+   6                  frequence : 12 MHZ
+   7                  
+   8                  Author    : Pan xiao bin
+   9                  Version   : 1.0
+  10                  Date      : 2011.12.10
+  11                  
+  12                  All rights reserved.
+  13          
+  14          **********************************************************************/
+  15          #include "c8051F340.h"
+  16          #include "Main.h"
+  17          
+  18          void Delay(uchar n);
+  19          void Delay_ms(uint n);
+  20          void clear_wdt();
+  21          
+  22          
+  23          unsigned char bdata Flag1;
+  24          
+  25          sbit keyaction                  =Flag1^0;                       
+  26          sbit keyprese                   =Flag1^1;
+  27          sbit keyrelase                  =Flag1^2;
+  28          sbit sreceive                   =Flag1^3;
+  29          sbit Sreceiveend                =Flag1^4;
+  30          sbit tranready                  =Flag1^5;
+  31          sbit command_echo               =Flag1^6;       //command_echo =1时 需要有应答
+  32          
+  33          
+  34          
+  35          unsigned char bdata Flag2 = 0;
+  36          sbit signal                     =Flag2^0;               
+  37          sbit setup_mode                 =Flag2^1;
+  38          sbit block_writer               =Flag2^2;
+  39          sbit keyenable                  =Flag2^3;
+  40          sbit flag20ms                   =Flag2^4;
+  41          
+  42          sbit resend_msg                 =Flag2^6;
+  43          
+  44          
+  45          unsigned char bdata Flag3;
+  46          sbit ledon              =Flag3^0;
+  47          sbit TIME_2MS           =Flag3^1;
+  48          
+  49          
+  50          
+  51          unsigned char bdata Flag4;
+  52          sbit tranbuffull_1      =Flag4^0;
+  53          sbit sreceive_1         =Flag4^1;
+  54          sbit sreceiveend_1      =Flag4^2;
+  55          sbit servicesw          =Flag4^3;
+C51 COMPILER V8.18   MAIN                                                                  04/06/2012 13:33:25 PAGE 2   
+
+  56          sbit tranready_1        =Flag4^4;
+  57          
+  58          sbit led_status         =Flag4^5;
+  59          sbit TRFLAG             =Flag4^6;
+  60          sbit serviceled         =Flag4^7;
+  61          
+  62          
+  63          
+  64          unsigned char bdata status =0;
+  65          
+  66          sbit    guest_IN        =status^2;
+  67          sbit    all_off         =status^3;
+  68          
+  69          
+  70          
+  71          
+  72          unsigned char   data    RTC_BUF[4];
+  73          unsigned char   xdata   *COM_buf_point;
+  74          unsigned char   data    *COM1_buf_point;
+  75          unsigned char   data    *COM1_buf_trce_point;
+  76          
+  77          unsigned char   data    netactivetime;
+  78          unsigned char   data    second;
+  79          unsigned char   data    box;
+  80          unsigned char   data    time20ms;
+  81          unsigned char   data    time20ms_out;
+  82          
+  83          unsigned char   data    COM0_length;
+  84          unsigned int    xdata   eerom_address;
+  85          
+  86          
+  87          //unsigned char         data    *eeprom_point;
+  88          
+  89          
+  90          
+  91          
+  92          unsigned char   idata   receivetime_1;
+  93          
+  94          
+  95          unsigned char   xdata   BUF_RECE[64];
+  96          unsigned char   data    BUF_RECE1[IN_LEN];
+  97          unsigned char   data    BUF_TRCE1[IN_LEN];
+  98          
+  99          unsigned char   resend_msg_length=0;
+ 100          unsigned char   xdata   resend_msg_buf[64];
+ 101          unsigned char   resend_msg_sec=0;
+ 102          unsigned char   resend_msg_counter=0;
+ 103          unsigned char   temp=0;
+ 104          unsigned char   xdata   receive_length=0;
+ 105          unsigned char   xdata   receivetime =0;
+ 106          
+ 107          void Timer_Init()
+ 108          {
+ 109   1              TCON=0x10;
+ 110   1              TMOD=0x21;
+ 111   1              CKCON=000;
+ 112   1              TL0=0xA0;
+ 113   1              TH0=0xA0;
+ 114   1              TH1=0x30;
+ 115   1      }
+ 116          
+ 117          void UART_Init()
+C51 COMPILER V8.18   MAIN                                                                  04/06/2012 13:33:25 PAGE 3   
+
+ 118          {
+ 119   1              SCON0   =0x10;
+ 120   1              SBRLL1  =0x8F;
+ 121   1              SBRLH1  =0xFD;
+ 122   1              SCON1   =0x10;
+ 123   1              SBCON1  =0x43;
+ 124   1              
+ 125   1      }
+ 126          
+ 127          
+ 128          
+ 129          void    Port_IO_Init()
+ 130          {
+ 131   1              P0SKIP    = 0xCF;
+ 132   1              XBR0      = 0x01;
+ 133   1              XBR1      = 0x40;
+ 134   1              XBR2      = 0x01;
+ 135   1      
+ 136   1      }
+ 137          
+ 138          void    Oscillator_Init()
+ 139          {
+ 140   1              uchar i;
+ 141   1              OSCICN=0x83;
+ 142   1              CLKMUL=0x80;
+ 143   1              Delay(255);
+ 144   1              CLKMUL |=0xC0;
+ 145   1              do
+ 146   1              {       i=(CLKMUL &0x20);
+ 147   2              }while(!i);
+ 148   1      /*Osc_Wait2:
+ 149   1          mov  A,         CLKMUL
+ 150   1          jnb  ACC.5,     Osc_Wait2*/
+ 151   1      }
+ 152          
+ 153          void    Interrupts_Init()
+ 154          {
+ 155   1              EIE1 =000;
+ 156   1              EIE2 =002;    //EIE2 =002;
+ 157   1              IE =0x92;
+ 158   1      }
+ 159          
+ 160          
+ 161          
+ 162          void Init_Device()
+ 163          {
+ 164   1              Timer_Init();
+ 165   1              UART_Init();
+ 166   1              //SPI_Init();
+ 167   1              Port_IO_Init();
+ 168   1              Oscillator_Init();
+ 169   1              Interrupts_Init();
+ 170   1      }
+ 171          
+ 172          void Delay(uchar n)
+ 173          {
+ 174   1              uchar i;
+ 175   1              for(i=0;i<n;i++);
+ 176   1      }
+ 177          
+ 178          void Delay_ms(uint n)
+ 179          {
+C51 COMPILER V8.18   MAIN                                                                  04/06/2012 13:33:25 PAGE 4   
+
+ 180   1              uint i;
+ 181   1              for(i=0;i<n;i++)Delay(80);
+ 182   1      }
+ 183          
+ 184          void clear_wdt() /*清看门狗*/
+ 185          {
+ 186   1              EA=0;
+ 187   1              ReadEE(0xff,1,RTC_BUF);
+ 188   1              EA=1;
+ 189   1      }
+ 190          
+ 191          /*定时器0 中断服务程序,用于2MS */
+ 192          void Service_Timer0() interrupt 1       using 1
+ 193          {
+ 194   1              TL0 = TL0_VAL;  
+ 195   1              TH0 = TH0_VAL;
+ 196   1              TIME_2MS = 1;
+ 197   1              if(sreceive)
+ 198   1              {
+ 199   2                      if(receivetime >8 )
+ 200   2                      {
+ 201   3                              sreceive = 0;
+ 202   3                              receivetime = 0;
+ 203   3                              OE0 = 1;
+ 204   3                              REN0 = 1;
+ 205   3                              TI0 = 0;
+ 206   3                              receive_length =0;
+ 207   3                      }
+ 208   2                      else    receivetime ++;
+ 209   2              }
+ 210   1              
+ 211   1              if(sreceive_1)
+ 212   1              {
+ 213   2                      if(receivetime_1 > 4)
+ 214   2                      {
+ 215   3                              sreceive_1 = 0;
+ 216   3                              receivetime_1 = 0;
+ 217   3                              OE1 = 1;
+ 218   3                              SCON1 |=0x10;
+ 219   3                              SCON1&=~(0x02);
+ 220   3                      }
+ 221   2                      else    receivetime_1++;
+ 222   2              }
+ 223   1      
+ 224   1      
+ 225   1      
+ 226   1      }
+ 227          
+ 228          
+ 229          
+ 230          
+ 231          
+ 232          void main()
+ 233          {
+ 234   1              unsigned char   data  i,j;
+ 235   1              //struct        Task_d   xdata *Task_point;
+ 236   1      
+ 237   1              PCA0MD &= ~(0x40);      // clear Watchdog Enable bit
+ 238   1              Init_Device();
+ 239   1      
+ 240   1              
+ 241   1              TR1     = ON;
+C51 COMPILER V8.18   MAIN                                                                  04/06/2012 13:33:25 PAGE 5   
+
+ 242   1              TR0     = ON;
+ 243   1              EA      = ON;
+ 244   1              OE0     = ON;
+ 245   1              RI0     = ON;
+ 246   1              OE1     = ON;
+ 247   1              SCON1  |=0x01;
+ 248   1              
+ 249   1              for(box=0;box<255;box++)
+ 250   1              {
+ 251   2                      Delay_ms(60);
+ 252   2              }
+ 253   1              
+ 254   1              ReadEE(0x01,1,RTC_BUF);
+ 255   1              box = RTC_BUF[0];
+ 256   1              
+ 257   1              
+ 258   1              BUF_TRCE1[0] = 0xfa;
+ 259   1              BUF_TRCE1[1]=  DEVICE_CODE;
+ 260   1              BUF_TRCE1[2]=  box;
+ 261   1              BUF_TRCE1[3]=  0xfe;
+ 262   1              BUF_TRCE1[4]=  0;
+ 263   1              BUF_TRCE1[5]=  ver+1;
+ 264   1              BUF_TRCE1[6]=  0x80;
+ 265   1              trans_data1();
+ 266   1              
+ 267   1              
+ 268   1              
+ 269   1              time20ms=10;
+ 270   1              
+ 271   1              second  =50;
+ 272   1                      
+ 273   1      
+ 274   1              
+ 275   1              PCA0CN    = 0x40;
+ 276   1              
+ 277   1              PCA0L    = 0x00;                // Set lower byte of PCA counter to 0  
+ 278   1              PCA0H    = 0x00;                // Set higher byte of PCA counter to 0
+ 279   1              
+ 280   1              PCA0CPL4 = 0xFF;     // Write offset for the WDT 
+ 281   1              
+ 282   1              PCA0MD |= 0x60;      // enable Watchdog Enable bit
+ 283   1                      
+ 284   1              PCA0CPH4 = 0xff;
+ 285   1              
+ 286   1              COM0_length = 4;
+ 287   1                                              BUF_RECE[0]=0x32;
+ 288   1                                              BUF_RECE[1]=0xec;
+ 289   1                                              //BUF_RECE[1]=0xee;
+ 290   1                                              BUF_RECE[2]=0xaa;
+ 291   1                                              BUF_RECE[3]=0x80;
+ 292   1                                              BUF_RECE[4]= BUF_RECE[1] +BUF_RECE[2]+BUF_RECE[3];
+ 293   1                                              trans_data();
+ 294   1                                              while(!OE0)
+ 295   1                                              
+ 296   1              do
+ 297   1              {
+ 298   2                      if(sreceiveend)
+ 299   2                      {
+ 300   3                              sreceiveend = OFF;
+ 301   3                              j=BUF_RECE[0];
+ 302   3                              for(i=1;i<receive_length;i++)
+ 303   3                              {
+C51 COMPILER V8.18   MAIN                                                                  04/06/2012 13:33:25 PAGE 6   
+
+ 304   4                                      j=j^BUF_RECE[i];
+ 305   4                              }
+ 306   3                              if(!j)  receive_data();
+ 307   3                                      
+ 308   3                              REN0=1;;
+ 309   3                      }
+ 310   2                      
+ 311   2                      
+ 312   2                      
+ 313   2                      if(sreceiveend_1)
+ 314   2                      {
+ 315   3                              sreceiveend_1 = OFF;
+ 316   3                              receive_data1();
+ 317   3                              SCON1 |=0x10;
+ 318   3                      }
+ 319   2      
+ 320   2                      if(receive_length==40)
+ 321   2                      {
+ 322   3                              if((BUF_RECE[1]==0x34)&&(BUF_RECE[2]==0x30)&&(BUF_RECE[3]==0x30))receive_length = 32;//40
+             -0 返回命令
+ 323   3                              else if((BUF_RECE[1]==0x41)&&(BUF_RECE[2]==0x54)&&(BUF_RECE[4]==0x21))receive_length = 33
+             -;//ATX 命令
+ 324   3                                   else  if((BUF_RECE[1]==0x36)&&(BUF_RECE[3]==0x30))
+ 325   3                                         {    if((BUF_RECE[2]==0x30))receive_length = 6;//600 返回命令
+ 326   4                                              else  if(BUF_RECE[2]==0x31)receive_length = 6;//610 返回命令
+ 327   4                                                    else if(BUF_RECE[2]==0x32)receive_length = 6;//620 返回命令
+ 328   4                                                         else if(BUF_RECE[2]==0x33)receive_length = 6;//630 返回命令
+ 329   4                                                              else if(BUF_RECE[2]==0x34)receive_length = 6;//640 返回命令     
+ 330   4                                         }
+ 331   3                                              
+ 332   3                      }                       
+ 333   2                      
+ 334   2                      
+ 335   2                      while(TIME_2MS)
+ 336   2                      {
+ 337   3                              TIME_2MS = 0;
+ 338   3                              
+ 339   3                              PCA0CPH4 = 0xff;
+ 340   3                              
+ 341   3                              
+ 342   3                              if(!(--time20ms_out))
+ 343   3                              {
+ 344   4      
+ 345   4                                      time20ms_out = 10;
+ 346   4                                      
+ 347   4                                      
+ 348   4                                      
+ 349   4                              }
+ 350   3                                      
+ 351   3                              
+ 352   3                              //PROC_RELAY_OUTPUT();  
+ 353   3                              
+ 354   3                              if(!(--time20ms))
+ 355   3                              {
+ 356   4      
+ 357   4                                      time20ms = 10;
+ 358   4                                      if(tranready_1)
+ 359   4                                      {
+ 360   5                                              tranready_1=0;
+ 361   5                                              trans_data1();
+ 362   5      
+ 363   5                                      }
+C51 COMPILER V8.18   MAIN                                                                  04/06/2012 13:33:25 PAGE 7   
+
+ 364   4                                      
+ 365   4                                                              
+ 366   4                                      
+ 367   4              /*service按钮处理程序,service按钮释放:servicesw=0,service按钮按下:servicesw=1,  */              
+ 368   4                                      service_led =1;
+ 369   4                                      Delay(2);
+ 370   4                                      if(!service_led)
+ 371   4                                      {
+ 372   5                                              if(!servicesw)
+ 373   5                                              {       
+ 374   6                                                      servicesw=1;
+ 375   6                                                      while(!OE1);
+ 376   6                                                      BUF_RECE1[0] = 0xfa;
+ 377   6                                                      BUF_RECE1[1]=  DEVICE_CODE;
+ 378   6                                                      BUF_RECE1[2]=  box;
+ 379   6                                                      BUF_RECE1[3]=  0xfe;
+ 380   6                                                      BUF_RECE1[4]=  0;
+ 381   6                                                      BUF_RECE1[5]=  ver;
+ 382   6                                                      BUF_RECE1[6]=  0;
+ 383   6                                                      set_tranready1();
+ 384   6                                              }       
+ 385   5                                      }
+ 386   4                                      else
+ 387   4                                      {
+ 388   5                                              servicesw=0;
+ 389   5                                              if(led_status)service_led =1;
+ 390   5                                              else    service_led =0;
+ 391   5                                      }
+ 392   4                                      
+ 393   4                                      if(!second--)
+ 394   4                                      {
+ 395   5                                              second = 50;
+ 396   5                                              
+ 397   5                                              if(!setup_mode)clear_wdt();
+ 398   5      
+ 399   5                                              if((resend_msg)&&(OE0))
+ 400   5                                              {       
+ 401   6                                                      if(!resend_msg_sec--)
+ 402   6                                                      {       
+ 403   7                                                      
+ 404   7                                                              resend_msg_sec=10;      
+ 405   7                                                              for(temp=0;temp < resend_msg_length;temp++)
+ 406   7                                                              BUF_RECE[temp] = resend_msg_buf[temp] ;
+ 407   7                                                              trans_data();
+ 408   7                                                              if(!resend_msg_counter--) resend_msg = 0;
+ 409   7                                                      
+ 410   7                                                      }
+ 411   6                                              }
+ 412   5                                                      
+ 413   5                                                      
+ 414   5                                              if(TRFLAG)
+ 415   5                                              {
+ 416   6                                                      TRFLAG = 0;
+ 417   6                                                      //OE0 = 1;
+ 418   6                                                      //REN0 =1;
+ 419   6                                                      OE1 = 1;
+ 420   6                                                      SCON1 |=0x10;
+ 421   6                                                      EA = 1;
+ 422   6                                                      
+ 423   6                                              }
+ 424   5                                              else    TRFLAG =1;
+ 425   5                                              if(serviceled)
+C51 COMPILER V8.18   MAIN                                                                  04/06/2012 13:33:25 PAGE 8   
+
+ 426   5                                              {       if(!netactivetime--) serviceled=0;
+ 427   6                                              }
+ 428   5                                              else    
+ 429   5                                              {
+ 430   6                                                      if(led_status)
+ 431   6                                                      {       
+ 432   7                                                              service_led = 0;
+ 433   7                                                              led_status=0;
+ 434   7                                                      }
+ 435   6                                                      else
+ 436   6                                                      {
+ 437   7                                                              service_led = 1;
+ 438   7                                                              led_status=1;
+ 439   7                                                      }               
+ 440   6                                              }
+ 441   5                                                      
+ 442   5                                      }
+ 443   4                                      if(serviceled)
+ 444   4                                      {
+ 445   5                                              if(second<25) 
+ 446   5                                              {       service_led =0;
+ 447   6                                                      led_status=0;
+ 448   6                                              }
+ 449   5                                              else 
+ 450   5                                              {       service_led =1;
+ 451   6                                                      led_status=1;
+ 452   6                                              }
+ 453   5                                      }
+ 454   4                                      
+ 455   4                              }
+ 456   3                              
+ 457   3                      }
+ 458   2              }while(1);
+ 459   1              
+ 460   1      }
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =    804    ----
+   CONSTANT SIZE    =   ----    ----
+   XDATA SIZE       =    132    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =     39    ----
+   IDATA SIZE       =      1    ----
+   BIT SIZE         =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

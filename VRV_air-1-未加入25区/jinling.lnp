@@ -1,0 +1,6 @@
+"Comm.obj",
+"IIC_R_W.obj",
+"Main.obj",
+"STARTUP.obj" 
+TO "jinling" 
+RAMSIZE(256) 

@@ -1,0 +1,59 @@
+[Project ID]
+Signature=UE Proj: v.1
+[Project Information]
+Use Relative Directory=1
+Relative to Project File=1
+Project Start=DA07060000000D00150010002700000040
+Include Sub Directories=1
+Project Tagfile=
+Project Wordfile=
+Filter=
+Create Tagfile=0
+Working Time=451783
+[Group]
+0=c_code
+1=inc
+[Files - c_code]
+0=Main.C
+1=Comm.C
+2=IIC_R_W.C
+[Folders]
+c_code=1
+inc=1
+[Files - inc]
+0=c8051F340.h
+1=Main.h
+[Open Files]
+Open File0=.\Main.h
+Open File Pos0=608
+Open File Line0=393
+Open File Window Pos0=0,1,-1,-1,-4,-30,0,0,702,396
+Open File1=C:\Program Files\LDS\智能照明控制系统\BLight.evt
+Open File Pos1=2340
+Open File Line1=2340
+Open File Window Pos1=0,1,-1,-1,-4,-30,44,58,750,458
+Open File2=.\Main.C
+Open File Pos2=6174
+Open File Line2=4799
+Active File Index=2
+Open File Window Pos2=2,3,-1,-1,-4,-30,66,87,772,458
+Open File3=.\Comm.C
+Open File Pos3=4669
+Open File Line3=6973
+Open File Window Pos3=0,1,-1,-1,-4,-30,88,116,794,487
+Open File4=E:\DALITEK\hotel_room\temperature\temperature_eeprom\temperature.inc
+Open File Pos4=0
+Open File Line4=3616
+Open File Window Pos4=0,1,-1,-1,-4,-30,110,145,816,516
+Open File5=E:\DALITEK\hotel_room\temperature\temperature_eeprom\temperature.asm
+Open File Pos5=747
+Open File Line5=1480
+Open File Window Pos5=0,1,-1,-1,-4,-30,132,174,838,545
+Open File6=.\IIC_R_W.C
+Open File Pos6=2863
+Open File Line6=192
+Open File Window Pos6=0,1,-1,-1,-4,-30,0,0,728,303
+Open File7=
+Active File Display Mode=3
+[Find]
+Files To Search=2

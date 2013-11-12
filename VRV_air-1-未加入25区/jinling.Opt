@@ -1,0 +1,57 @@
+### uVision2 Project, (C) Keil Software
+### Do not modify !
+
+ cExt (*.c)
+ aExt (*.s*; *.src; *.a*)
+ oExt (*.obj)
+ lExt (*.lib)
+ tExt (*.txt; *.h; *.inc)
+ pExt (*.plm)
+ CppX (*.cpp)
+ DaveTm { 0,0,0,0,0,0,0,0 }
+
+Target (Target 1), 0x0000 // Tools: 'MCS-51'
+GRPOPT 1,(Source Group 1),1,0,0
+GRPOPT 2,(INC Group),1,0,0
+
+OPTFFF 1,1,1,301989889,0,439,445,0,<.\Comm.C><Comm.C> { 44,0,0,0,0,0,0,0,1,0,0,0,255,255,255,255,255,255,255,255,252,255,255,255,226,255,255,255,44,0,0,0,58,0,0,0,148,4,0,0,3,1,0,0 }
+OPTFFF 1,2,1,150994945,0,54,62,0,<.\IIC_R_W.C><IIC_R_W.C> { 44,0,0,0,0,0,0,0,1,0,0,0,255,255,255,255,255,255,255,255,252,255,255,255,226,255,255,255,0,0,0,0,0,0,0,0,104,4,0,0,201,0,0,0 }
+OPTFFF 1,3,1,536870915,0,866,878,0,<.\Main.C><Main.C> { 44,0,0,0,2,0,0,0,3,0,0,0,255,255,255,255,255,255,255,255,252,255,255,255,226,255,255,255,66,0,0,0,87,0,0,0,144,4,0,0,41,1,0,0 }
+OPTFFF 1,4,2,520093696,0,0,0,0,<.\STARTUP.A51><STARTUP.A51> 
+OPTFFF 2,5,5,134217728,0,0,0,0,<.\Main.h><Main.h> 
+OPTFFF 2,6,5,0,0,0,0,0,<.\c8051f340-modbus.h><c8051f340-modbus.h> 
+
+
+TARGOPT 1, (Target 1)
+ CLK51=48000000
+  OPTTT 1,1,1,0
+  OPTHX 0,65535,0,0,0
+  OPTLX 120,65,8,<.\>
+  OPTOX 16
+  OPTLT 1,1,1,0,1,1,0,1,0,0,0,0
+  OPTXL 1,1,1,1,1,1,1,0,0
+  OPTFL 1,0,1
+  OPTBL 0,(Data Sheet)<DATASHTS\SILABS\C8051F34X.PDF>
+  OPTBL 1,(Data Short)<DATASHTS\SILABS\C8051F340_SHORT.PDF>
+  OPTDL (S8051.DLL)()(DCYG.DLL)(-pCYGF340)(S8051.DLL)()(TCYG.DLL)(-pCYGF340)
+  OPTDBG 49150,9,()()()()()()()()()() (BIN\SiC8051F.dll)()()()
+  OPTKEY 0,(DLGTCYG)()
+  OPTKEY 0,(SiC8051F)(-S1 -B115200 -O1793 -J0 -K0 -L0 -M0 -A3 -P1 -T0 -UEC300041719)
+  OPTBB 0,0,871,1,-16774259,0,0,0,0,1,<Main.C>()()
+  OPTWA 0,1,(status_connect)
+  OPTWA 1,1,(status_communication)
+  OPTWA 2,1,(PermitTrans)
+  OPTWA 3,1,(readySend)
+  OPTWA 4,1,(status_ctrl)
+  OPTWA 0,2,(BUF_RECE)
+  OPTWA 1,2,(status_communication)
+  OPTWA 2,2,(status_connect)
+  OPTWA 3,2,(resend_times)
+  OPTWA 4,2,(last_register_addr)
+  OPTWA 5,2,(status_register)
+  OPTWA 6,2,(function_register)
+  OPTDF 0x40000084
+  OPTLE <>
+  OPTLC <>
+EndOpt
+

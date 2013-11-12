@@ -1,0 +1,36 @@
+<html>
+<body>
+<pre>
+<h1>礦ision Build Log</h1>
+<h2>Project:</h2>
+F:\lds\项目（codes）\modbus\Toshiba modbus\VRV_air-1-未加入25区\jinling.uvproj
+Project File Date:  09/04/2013
+
+<h2>Output:</h2>
+Build target 'Target 1'
+compiling Main.C...
+Main.C(548): warning C280: 'i': unreferenced local variable
+Main.C(548): warning C280: 'j': unreferenced local variable
+Main.C(549): warning C280: 'get_param': unreferenced local variable
+Main.C(788): warning C280: 'j': unreferenced local variable
+Main.C(792): warning C280: 'buf_index': unreferenced local variable
+linking...
+*** WARNING L16: UNCALLED SEGMENT, IGNORED FOR OVERLAY PROCESS
+    SEGMENT: ?PR?RESEND_MSG_PROC?COMM
+Program Size: data=94.0 xdata=1448 code=6468
+creating hex file from "Toshiba_modbus_version2"...
+"Toshiba_modbus_version2" - 0 Error(s), 6 Warning(s).
+Build target 'Target 1'
+linking...
+*** WARNING L16: UNCALLED SEGMENT, IGNORED FOR OVERLAY PROCESS
+    SEGMENT: ?PR?RESEND_MSG_PROC?COMM
+Program Size: data=94.0 xdata=1448 code=6468
+creating hex file from "Toshiba_modbus_v3.00"...
+"Toshiba_modbus_v3.00" - 0 Error(s), 1 Warning(s).
+Build target 'Target 1'
+linking...
+*** WARNING L16: UNCALLED SEGMENT, IGNORED FOR OVERLAY PROCESS
+    SEGMENT: ?PR?RESEND_MSG_PROC?COMM
+Program Size: data=94.0 xdata=1448 code=6468
+creating hex file from "Toshiba_modbus_v3_00"...
+"Toshiba_modbus_v3_00" - 0 Error(s), 1 Warning(s).

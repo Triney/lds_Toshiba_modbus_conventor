@@ -1,0 +1,1 @@
+"E:\DALITEK\hotel_room\yian_huar\Main.obj"  TO "E:\DALITEK\hotel_room\yian_huar\yian_huar" RS(256) PL(68) PW(78) 

@@ -1,0 +1,6 @@
+"STARTUP.obj",
+"Main.obj",
+"IIC_R_W.obj",
+"Comm.obj" 
+TO "Toshiba_modbus_version2" 
+RAMSIZE(256) 

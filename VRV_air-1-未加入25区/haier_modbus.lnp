@@ -1,0 +1,6 @@
+"STARTUP.obj",
+"Main.obj",
+"IIC_R_W.obj",
+"Comm.obj" 
+TO "haier_modbus" 
+RAMSIZE(256) 

@@ -1,0 +1,503 @@
+C51 COMPILER V8.18   COMM                                                                  04/06/2012 13:33:25 PAGE 1   
+
+
+C51 COMPILER V8.18, COMPILATION OF MODULE COMM
+OBJECT MODULE PLACED IN Comm.OBJ
+COMPILER INVOKED BY: C:\Keil\C51\BIN\C51.EXE Comm.C BROWSE DEBUG OBJECTEXTEND TABS(8)
+
+line level    source
+
+   1          #include "c8051F340.h"
+   2          #include "Main.h"
+   3          
+   4          void Service_COM();
+   5          void Delay_tr();
+   6          void send_BUF_TRAN();
+   7          
+   8          void receive_data();
+   9          void resend_msg_proc();
+  10          
+  11          
+  12          
+  13          
+  14          extern  uchar netactivetime;
+  15          
+  16          
+  17          
+  18          
+  19          void Service_COM() interrupt 4
+  20          {
+  21   1              if( RI0)
+  22   1              {
+  23   2                      RI0=0;
+  24   2                      if(!sreceive)
+  25   2                      {
+  26   3                              if(SBUF0==0x02)
+  27   3                              {
+  28   4                                      sreceive=1;
+  29   4                                      COM_buf_point = BUF_RECE;
+  30   4                                      receive_length =40;
+  31   4                              }
+  32   3                      }
+  33   2                      if(sreceive)
+  34   2                      {
+  35   3                              *COM_buf_point=SBUF0;
+  36   3      
+  37   3                              if(COM_buf_point==receive_length-1)
+  38   3                              {
+  39   4                                      sreceiveend=1;
+  40   4                                      REN0=0;
+  41   4                                      sreceive=0;
+  42   4                                      
+  43   4                              }
+  44   3                              else COM_buf_point++;
+  45   3                      }
+  46   2              }
+  47   1              else
+  48   1              {
+  49   2                      if( TI0)
+  50   2                      {
+  51   3                              TI0=0;
+  52   3                              if(COM_buf_point < (BUF_RECE+COM0_length))
+  53   3                              {
+  54   4                                      COM_buf_point++;
+  55   4                                      SBUF0=*COM_buf_point;
+C51 COMPILER V8.18   COMM                                                                  04/06/2012 13:33:25 PAGE 2   
+
+  56   4      
+  57   4                              }
+  58   3                              else
+  59   3                              {
+  60   4                                      Delay_tr();
+  61   4                                      OE0=1;
+  62   4                                      REN0=1;
+  63   4                              }
+  64   3                      }
+  65   2              }
+  66   1              receivetime=0;
+  67   1              
+  68   1      }
+  69          
+  70          
+  71          void Service_COM1() interrupt 16
+  72          {
+  73   1              if( SCON1&0x01 )
+  74   1              {
+  75   2                      SCON1&=~(0x01);
+  76   2                      if(!sreceive_1)
+  77   2                      {
+  78   3                              if((SBUF1==0xfa)||(SBUF1==0xf5)||(SBUF1==0xfc))
+  79   3                              {
+  80   4                                      sreceive_1=1;
+  81   4                                      COM1_buf_point = BUF_RECE1;
+  82   4                                      
+  83   4                              }
+  84   3                      }
+  85   2                      if(sreceive_1)
+  86   2                      {
+  87   3                              *COM1_buf_point=SBUF1;
+  88   3      
+  89   3                              if(COM1_buf_point==BUF_RECE1+IN_LEN-1)
+  90   3                              {
+  91   4                                      sreceiveend_1=1;
+  92   4                                      SCON1&=~(0x10);;
+  93   4                                      sreceive_1=0;
+  94   4                                      
+  95   4                              }
+  96   3                              else COM1_buf_point++;
+  97   3                      }
+  98   2              }
+  99   1              else
+ 100   1              {
+ 101   2                      if( SCON1&0x02)
+ 102   2                      {
+ 103   3                              SCON1&=~(0x02);
+ 104   3                              if(COM1_buf_trce_point < (BUF_TRCE1+IN_LEN-1))
+ 105   3                              {
+ 106   4                                      COM1_buf_trce_point++;
+ 107   4                                      SBUF1=*COM1_buf_trce_point;
+ 108   4      
+ 109   4                              }
+ 110   3                              else
+ 111   3                              {
+ 112   4                                      Delay_tr();
+ 113   4                                      OE1=1;
+ 114   4                                      SCON1 |=0x10;
+ 115   4                                      netactivetime = 6;
+ 116   4                                      serviceled = 1;
+ 117   4                                      
+C51 COMPILER V8.18   COMM                                                                  04/06/2012 13:33:25 PAGE 3   
+
+ 118   4      
+ 119   4                              }
+ 120   3                      }
+ 121   2              }
+ 122   1              receivetime_1=0;
+ 123   1              TRFLAG=0;
+ 124   1      }
+ 125          
+ 126          
+ 127          
+ 128          void delay_tr()
+ 129          {
+ 130   1              unsigned char j;
+ 131   1              {
+ 132   2                      for(j=0;j<10;j++);
+ 133   2      
+ 134   2               }
+ 135   1      }
+ 136          
+ 137          void trans_data1()
+ 138          {
+ 139   1              unsigned char i,j;
+ 140   1              COM1_buf_trce_point = BUF_TRCE1;
+ 141   1              if((*COM1_buf_trce_point == 0xfa)||(*COM1_buf_trce_point == 0xf5)||(*COM1_buf_trce_point == 0xfc))
+ 142   1              {
+ 143   2                      SCON1&=~(0x10);
+ 144   2                      OE1 = 0;
+ 145   2                      j=0;
+ 146   2                      for(i=0;i<IN_LEN-1;i++)
+ 147   2                              j=j+BUF_TRCE1[i];
+ 148   2                      j = ~j;
+ 149   2                      BUF_TRCE1[IN_LEN-1]=j+1;
+ 150   2                      SBUF1 = *COM1_buf_trce_point;
+ 151   2                      
+ 152   2              }
+ 153   1      }
+ 154          
+ 155          void set_tranready1()
+ 156          {
+ 157   1              time20ms = time20ms+6;
+ 158   1              tranready_1 =1;
+ 159   1      }
+ 160          
+ 161          void trans_data()
+ 162          {
+ 163   1              //unsigned char i;
+ 164   1              COM_buf_point = BUF_RECE;
+ 165   1              if(*COM_buf_point == 0x32)
+ 166   1              {
+ 167   2                      REN0 = 0;
+ 168   2                      OE0 = 0;
+ 169   2                      SBUF0 = *COM_buf_point;
+ 170   2              
+ 171   2              }
+ 172   1      }
+ 173          
+ 174          void set_tranready()
+ 175          {
+ 176   1              time20ms_out = time20ms_out+6;
+ 177   1              tranready =1;
+ 178   1      }
+ 179          
+C51 COMPILER V8.18   COMM                                                                  04/06/2012 13:33:25 PAGE 4   
+
+ 180          
+ 181          void receive_data1()
+ 182          {
+ 183   1              unsigned char data i,j;
+ 184   1              unsigned int data k;
+ 185   1              unsigned char           *eeprom_point;
+ 186   1              
+ 187   1              j=0;
+ 188   1              for(i=0;i<IN_LEN;i++)
+ 189   1                      j=j+BUF_RECE1[i];
+ 190   1              if(!j)
+ 191   1              {
+ 192   2                      netactivetime = 6;
+ 193   2                      serviceled = 1;
+ 194   2                      if((BUF_RECE1[0]==0xfa)&&(BUF_RECE1[1]==DEVICE_CODE)&&(BUF_RECE1[2]==box))
+ 195   2                      {
+ 196   3                              j=BUF_RECE1[3];
+ 197   3                              
+ 198   3                              switch(j)
+ 199   3                              {
+ 200   4                                      case 0xfb:              /* command = read EEPROM */
+ 201   4                                      {
+ 202   5                                              BUF_TRCE1[3]= 0xf9;
+ 203   5                                              if(BUF_RECE1[5]||BUF_RECE1[4])
+ 204   5                                              {
+ 205   6                                                      ReadEE((BUF_RECE1[4]*256+BUF_RECE1[5]),1,RTC_BUF);
+ 206   6                                                      BUF_TRCE1[6]= RTC_BUF[0]; 
+ 207   6                                              }
+ 208   5                                              else BUF_TRCE1[6]= DEVICE_CODE;
+ 209   5                                              BUF_TRCE1[0]= BUF_RECE1[0];     
+ 210   5                                              BUF_TRCE1[1]= BUF_RECE1[1];     
+ 211   5                                              BUF_TRCE1[2]= BUF_RECE1[2];     
+ 212   5                                              BUF_TRCE1[4]= BUF_RECE1[4];
+ 213   5                                              BUF_TRCE1[5]= BUF_RECE1[5];     
+ 214   5                                              set_tranready1();
+ 215   5                                      }
+ 216   4                                      break;
+ 217   4                                      case 0xfa:              /* command = Write EEPROM */
+ 218   4                                      {
+ 219   5                                              BUF_RECE1[3]= 0xf9;
+ 220   5                                              set_tranready1();
+ 221   5                                              RTC_BUF[0]=BUF_RECE1[6];
+ 222   5                                              WriteEE((BUF_RECE1[4]*256+BUF_RECE1[5]),1,RTC_BUF);
+ 223   5                                              while(ReadEE((BUF_RECE1[4]*256+BUF_RECE1[5]),1,BUF_RECE1));
+ 224   5                                              ReadEE((BUF_RECE1[4]*256+BUF_RECE1[5]),1,RTC_BUF);
+ 225   5                                              BUF_RECE1[6]= RTC_BUF[0];
+ 226   5                                              BUF_TRCE1[0]= 0xfa;     
+ 227   5                                              BUF_TRCE1[1]= BUF_RECE1[1];     
+ 228   5                                              BUF_TRCE1[2]= BUF_RECE1[2];     
+ 229   5                                              BUF_TRCE1[4]= BUF_RECE1[4];
+ 230   5                                              BUF_TRCE1[5]= BUF_RECE1[5];
+ 231   5                                      }
+ 232   4                                      break;
+ 233   4                                      case 0xBA:              /* command = Request ver */
+ 234   4                                      {
+ 235   5                                              BUF_TRCE1[0]= BUF_RECE1[0];     
+ 236   5                                              BUF_TRCE1[1]= BUF_RECE1[1];     
+ 237   5                                              BUF_TRCE1[2]= BUF_RECE1[2];     
+ 238   5                                              BUF_TRCE1[4]= BUF_RECE1[4];
+ 239   5                                              BUF_TRCE1[6]= BUF_RECE1[6];
+ 240   5                                              BUF_TRCE1[3]= 0xFE;
+ 241   5                                              BUF_TRCE1[5]= ver; 
+C51 COMPILER V8.18   COMM                                                                  04/06/2012 13:33:25 PAGE 5   
+
+ 242   5                                              set_tranready1();
+ 243   5                                      }
+ 244   4                                      break;
+ 245   4                                      case 0xFC:              /* command = Reboot */
+ 246   4                                      {
+ 247   5                                            RSTSRC |=0x10;
+ 248   5                                      }
+ 249   4                                      break;
+ 250   4                                      case 0xFD:              /* command = Listen to me */
+ 251   4                                      {
+ 252   5                                              if(BUF_RECE1[5]) setup_mode =1;
+ 253   5                                              else setup_mode =0;
+ 254   5                                      }
+ 255   4                                      break;  
+ 256   4                                      case 0xDF:              /* command = enable Block read */
+ 257   4                                      {
+ 258   5                                              BUF_TRCE1[0]= BUF_RECE1[0];     
+ 259   5                                              BUF_TRCE1[1]= BUF_RECE1[1];     
+ 260   5                                              BUF_TRCE1[2]= BUF_RECE1[2];     
+ 261   5                                              BUF_TRCE1[4]= BUF_RECE1[4];
+ 262   5                                              BUF_TRCE1[5]= BUF_RECE1[5];
+ 263   5                                              BUF_TRCE1[6]= BUF_RECE1[6];
+ 264   5                                              BUF_TRCE1[3]=  0xDE;
+ 265   5                                              
+ 266   5                                              set_tranready1();
+ 267   5                                      }
+ 268   4                                      break;
+ 269   4                                      case 0xDE:              /* command = Block read */
+ 270   4                                      {
+ 271   5                                              BUF_TRCE1[0]=  0xFC;
+ 272   5                                              eeprom_point = &BUF_TRCE1[1];
+ 273   5                                              ReadEE((BUF_RECE1[4]*256+BUF_RECE1[5]),6,eeprom_point);
+ 274   5                                              set_tranready1();
+ 275   5                                      }
+ 276   4                                      break;
+ 277   4                                      case 0xDD:              /* command = Block writer */
+ 278   4                                      {
+ 279   5                                              
+ 280   5                                              block_writer = 1;
+ 281   5                                              eerom_address = BUF_RECE1[4]*256 + BUF_RECE1[5];
+ 282   5                                              //RTC_BUF[0]=BUF_RECE[4];/* Block writer = high */
+ 283   5                                              //RTC_BUF[1]=BUF_RECE[5];/* Block writer = low */
+ 284   5                                              BUF_TRCE1[0]= BUF_RECE1[0];     
+ 285   5                                              BUF_TRCE1[1]= BUF_RECE1[1];     
+ 286   5                                              BUF_TRCE1[2]= BUF_RECE1[2];     
+ 287   5                                              BUF_TRCE1[4]= BUF_RECE1[4];
+ 288   5                                              BUF_TRCE1[5]= BUF_RECE1[5];
+ 289   5                                              BUF_TRCE1[6]= BUF_RECE1[6];
+ 290   5                                              BUF_TRCE1[3]=  0xDC;
+ 291   5                                              set_tranready1();
+ 292   5                                      }
+ 293   4                                      break;  
+ 294   4                                      default:
+ 295   4                                              
+ 296   4                                      break;
+ 297   4                                      
+ 298   4                              }
+ 299   3                      }
+ 300   2                      else
+ 301   2                      {
+ 302   3                              if(BUF_RECE1[0]==0xf5)
+ 303   3                              {
+C51 COMPILER V8.18   COMM                                                                  04/06/2012 13:33:25 PAGE 6   
+
+ 304   4                                      
+ 305   4                              }       
+ 306   3                              else
+ 307   3                              {
+ 308   4                                      if((BUF_RECE1[0]== 0xfc)&& block_writer)
+ 309   4                                      {       
+ 310   5                                              eeprom_point = &BUF_RECE1[1];
+ 311   5                                              i = eerom_address % 256;
+ 312   5                                              j = i-(i >> 4)*16+5;
+ 313   5                                              if(j<16)
+ 314   5                                                      WriteEE(eerom_address,6,eeprom_point);
+ 315   5                                              else
+ 316   5                                              {
+ 317   6                                                      i= j-15;
+ 318   6                                                      j = 6-i;
+ 319   6                                                      WriteEE(eerom_address,j,eeprom_point);
+ 320   6                                                              
+ 321   6                                                      while(ReadEE(eerom_address,1,BUF_RECE1));
+ 322   6                                                      
+ 323   6                                                      k = eerom_address +j;
+ 324   6                                                      eeprom_point =eeprom_point +j;
+ 325   6                                                      WriteEE(k,i,eeprom_point);
+ 326   6                                                              
+ 327   6                                              
+ 328   6                                              }               
+ 329   5                                              BUF_TRCE1[0]= 0xFA;
+ 330   5                                              BUF_TRCE1[1]= DEVICE_CODE;
+ 331   5                                              BUF_TRCE1[2]= box;
+ 332   5                                              BUF_TRCE1[3]=0xdc;
+ 333   5                                              BUF_TRCE1[4]=eerom_address/256;
+ 334   5                                              BUF_TRCE1[5]=eerom_address%256;
+ 335   5                                              BUF_TRCE1[6]= 0;        
+ 336   5                                              eerom_address = eerom_address +6;
+ 337   5                                              set_tranready1();
+ 338   5                                      }
+ 339   4                                              
+ 340   4                              }
+ 341   3                      }
+ 342   2      
+ 343   2      
+ 344   2              }
+ 345   1      }
+ 346          
+ 347          
+ 348          void receive_data()
+ 349          {
+ 350   1              //unsigned char data i,j;
+ 351   1              
+ 352   1              if((BUF_RECE[1]==0x34)&&(BUF_RECE[2]==0x30)&&(BUF_RECE[3]==0x30))
+ 353   1              {       //400 ·µ»ØÃüÁî
+ 354   2              
+ 355   2              
+ 356   2              }
+ 357   1              else 
+ 358   1              {       if((BUF_RECE[1]==0x41)&&(BUF_RECE[2]==0x54)&&(BUF_RECE[4]==0x21))
+ 359   2                      {       //ATX ÃüÁî
+ 360   3                              if(BUF_RECE[2]==0x30)
+ 361   3                              {
+ 362   4      
+ 363   4                              }
+ 364   3                              else
+ 365   3                              {
+C51 COMPILER V8.18   COMM                                                                  04/06/2012 13:33:25 PAGE 7   
+
+ 366   4                                      if(BUF_RECE[2]==0x31)
+ 367   4                                      {
+ 368   5      
+ 369   5                                      }
+ 370   4                                      else
+ 371   4                                      {
+ 372   5                                              if(BUF_RECE[2]==0x32)
+ 373   5                                              {
+ 374   6      
+ 375   6                                              }
+ 376   5                                              else
+ 377   5                                              {
+ 378   6      
+ 379   6                                              }
+ 380   5                                      }
+ 381   4                              }
+ 382   3                      }
+ 383   2                      else  
+ 384   2                      {       if((BUF_RECE[1]==0x36)&&(BUF_RECE[3]==0x30)&&(BUF_RECE[4]==0x03))
+ 385   3                              {       if(BUF_RECE[2]==0x30)
+ 386   4                                      {       //600 ·µ»ØÃüÁî
+ 387   5                                              if((resend_msg_buf[1]==0x36)&&(resend_msg_buf[2]==0x30)&&(resend_msg_buf[3]==0x30))
+ 388   5                                                      resend_msg =0;
+ 389   5                                      }
+ 390   4                                      else  
+ 391   4                                      {       if(BUF_RECE[2]==0x31)
+ 392   5                                              {       //610 ·µ»ØÃüÁî
+ 393   6                                                      if((resend_msg_buf[1]==0x36)&&(resend_msg_buf[2]==0x31)&&(resend_msg_buf[3]==0x30))
+ 394   6                                                              resend_msg =0;
+ 395   6                                              }
+ 396   5                                              else
+ 397   5                                              {       if(BUF_RECE[2]==0x32)
+ 398   6                                                      {       //620 ·µ»ØÃüÁî
+ 399   7                                                              if((resend_msg_buf[1]==0x36)&&(resend_msg_buf[2]==0x32)&&(resend_msg_buf[3]==0x30))
+ 400   7                                                                      resend_msg =0;
+ 401   7                                                      }
+ 402   6                                                      else 
+ 403   6                                                      {       if(BUF_RECE[2]==0x33)
+ 404   7                                                              {       //630 ·µ»ØÃüÁî
+ 405   8                                                                      if((resend_msg_buf[1]==0x36)&&(resend_msg_buf[2]==0x33)&&(resend_msg_buf[3]==0x30))
+ 406   8                                                                              resend_msg =0;
+ 407   8      
+ 408   8                                                              }
+ 409   7                                                              else 
+ 410   7                                                              {       if(BUF_RECE[2]==0x34)
+ 411   8                                                                      {       //640 ·µ»ØÃüÁî
+ 412   9                                                                              if((resend_msg_buf[1]==0x36)&&(resend_msg_buf[2]==0x34)&&(resend_msg_buf[3]==0x30))
+ 413   9                                                                                      resend_msg =0;
+ 414   9                                                                      }
+ 415   8                                                              }
+ 416   7                                                      }
+ 417   6                                              }
+ 418   5                                      }
+ 419   4                              }
+ 420   3                      }
+ 421   2              }
+ 422   1      }
+ 423          
+ 424          
+ 425          void send_BUF_TRAN()
+ 426          {       
+ 427   1      //      uchar data i,j;
+C51 COMPILER V8.18   COMM                                                                  04/06/2012 13:33:25 PAGE 8   
+
+ 428   1              if(OE1)
+ 429   1              {
+ 430   2              /*      for( i=0; i< keynumber_all; i++)
+ 431   2                      {
+ 432   2                              j = BUF_TRAN[ i* 7];
+ 433   2                              if((j == 0xfa)||(j == 0xf5)||(j == 0xfc))
+ 434   2                              {
+ 435   2                                      BUF_RECE1[0] = j;
+ 436   2                                      BUF_TRAN[ i* 7] = 0xff;
+ 437   2                                      for( j = 1;j < 7; j++) 
+ 438   2                                              BUF_RECE1[j] = BUF_TRAN[ i* 7+j];
+ 439   2                                      set_tranready1();
+ 440   2                                      i = keynumber_all + 2;
+ 441   2                              }
+ 442   2                      }
+ 443   2                      */      
+ 444   2              }
+ 445   1                                      
+ 446   1      }
+ 447          
+ 448          
+ 449          
+ 450          void resend_msg_proc()
+ 451          {
+ 452   1              resend_msg_sec = 10;
+ 453   1              resend_msg_counter = 2;
+ 454   1              resend_msg = 1;
+ 455   1              for(temp=0;temp < 7;temp++)
+ 456   1                      resend_msg_buf[temp] = BUF_RECE[temp];
+ 457   1              set_tranready();
+ 458   1      }
+ 459          
+ 460          
+ 461          
+ 462          
+ 463          
+ 464                                          
+ 465          
+ 466                                  
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =   1365    ----
+   CONSTANT SIZE    =   ----    ----
+   XDATA SIZE       =   ----    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =   ----       5
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

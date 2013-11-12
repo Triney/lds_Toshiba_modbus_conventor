@@ -1,0 +1,922 @@
+C51 COMPILER V9.50a   COMM                                                                 11/12/2013 12:34:03 PAGE 1   
+
+
+C51 COMPILER V9.50a, COMPILATION OF MODULE COMM
+OBJECT MODULE PLACED IN Comm.OBJ
+COMPILER INVOKED BY: C:\Keil\C51\BIN\C51.EXE Comm.C BROWSE DEBUG OBJECTEXTEND TABS(2)
+
+line level    source
+
+   1          #include "c8051F340.h"
+   2          #include "Main.h"
+   3          #include "cmd.h"
+   4          
+   5          void Service_COM();
+   6          void Delay_tr();
+   7          void send_BUF_TRAN();
+   8          
+   9          void receive_data();
+  10          void resend_msg_proc();
+  11          
+  12          
+  13          
+  14          
+  15          extern uchar netactivetime;
+  16          
+  17          /****** added by jin  ****/
+  18          extern uint8 xdata flag_1ms; 
+  19          extern uint8 xdata Modbus_Rcvd_Num;
+  20          //extern uint8 xdata area[33];
+  21          extern uint8 xdata Modbus_Reg[85];
+  22          extern uint8 xdata  Reg_temp[50],air_box[16],VRV_ip[16],cmd_copy[20];
+  23          //extern uint16 xdata shift_addr[34];
+  24          //extern uint16 xdata svd_air_param[64][8];
+  25          extern uint16 xdata function_register[192];
+  26          extern uint16 xdata status_register[384];
+  27          extern uint8 xdata roll_poling,roll_flag,resend_times;
+  28          extern uint8 xdata station_ip,control_mode,actual_tempture[64];
+  29          
+  30          
+  31          uint8 xdata speed,mode,temperature;
+  32          /*************************/
+  33          
+  34          
+  35          
+  36          void Service_COM() interrupt 4
+  37          {
+  38   1        if( RI0)
+  39   1        {
+  40   2          RI0=0;
+  41   2          flag_1ms = 0;
+  42   2          if(!sreceive)
+  43   2          {
+  44   3      //      if(((SBUF0>=0)&&(SBUF0<64))||(SBUF0==0xDC)) //  (SBUF0==0X01) ((SBUF0>=0)&&(SBUF0<64))||(SBUF0==0xDC)
+  45   3            if(SBUF0 == station_ip)
+  46   3            {
+  47   4              sreceive=1;
+  48   4              COM_buf_point = BUF_RECE;
+  49   4              Modbus_Rcvd_Num = 0;
+  50   4              receive_length =40;
+  51   4            }
+  52   3          }
+  53   2      //    else
+  54   2          if(sreceive)
+  55   2          {
+C51 COMPILER V9.50a   COMM                                                                 11/12/2013 12:34:03 PAGE 2   
+
+  56   3            *COM_buf_point=SBUF0;
+  57   3             /********** added by jin  ************/
+  58   3             /*******    接收字符数    *******/
+  59   3            Modbus_Rcvd_Num++;
+  60   3             /**********************/
+  61   3            if(COM_buf_point==(BUF_RECE+receive_length-1))
+  62   3            {
+  63   4                      sreceiveend=1;
+  64   4              REN0=0;
+  65   4              sreceive=0;
+  66   4              
+  67   4                  }
+  68   3                  else COM_buf_point++;
+  69   3          }
+  70   2        }
+  71   1        else
+  72   1        {
+  73   2          if( TI0)
+  74   2          {
+  75   3            TI0=0;
+  76   3        /***********接收时不让REN=0?  ADDED @2013-1-9***************/
+  77   3            flag_1ms = 0;  
+  78   3        /***********接收时不让REN=0?  ADDED @2013-1-9***************/
+  79   3            if(COM_buf_point < (BUF_RECE+COM0_length))
+  80   3            {
+  81   4              COM_buf_point++;
+  82   4             /******* added by jin ********/
+  83   4             //Be used to add odd parity bit
+  84   4              ACC = *COM_buf_point;
+  85   4              TB80 = P;   //P为偶校验，~p为奇校验
+  86   4             /*************************/
+  87   4              SBUF0=*COM_buf_point;
+  88   4      
+  89   4            }
+  90   3            else
+  91   3            {
+  92   4              Delay_tr();
+  93   4              OE0=1;
+  94   4              REN0=1;
+  95   4              sreceive=0;
+  96   4            }
+  97   3          }
+  98   2        }
+  99   1        receivetime=0;
+ 100   1        
+ 101   1      }
+ 102          
+ 103          
+ 104          void Service_COM1() interrupt 16
+ 105          {
+ 106   1        unsigned char data  i;
+ 107   1        if( SCON1&0x01 )
+ 108   1        {
+ 109   2          do
+ 110   2          {
+ 111   3            SCON1&=~(0x81);
+ 112   3            i= SBUF1;
+ 113   3            if(!sreceive_1)
+ 114   3            {
+ 115   4          //  COM1_buf_point = BUF_RECE1;
+ 116   4          //  *COM1_buf_point=SBUF1;
+ 117   4            
+C51 COMPILER V9.50a   COMM                                                                 11/12/2013 12:34:03 PAGE 3   
+
+ 118   4              if((i==0xfa)||(i==0xf5)||(i==0xfc))
+ 119   4              {
+ 120   5                sreceive_1=1;
+ 121   5                COM1_buf_point = BUF_RECE1;
+ 122   5              
+ 123   5              }
+ 124   4              
+ 125   4            }
+ 126   3          
+ 127   3            
+ 128   3            if(sreceive_1)
+ 129   3            {
+ 130   4              *COM1_buf_point=i;
+ 131   4      
+ 132   4              if(COM1_buf_point==(BUF_RECE1+IN_LEN-1))
+ 133   4              {
+ 134   5                                  sreceiveend_1=1;
+ 135   5                SCON1&=~(0x10);;
+ 136   5                sreceive_1=0;
+ 137   5              
+ 138   5                                }
+ 139   4                                else COM1_buf_point++;
+ 140   4            }
+ 141   3            
+ 142   3          
+ 143   3          }while( SCON1&0x01) ;
+ 144   2        }
+ 145   1        else
+ 146   1        {
+ 147   2          if( SCON1&0x02)
+ 148   2          {
+ 149   3            SCON1&=~(0x02);
+ 150   3            if(COM1_buf_trce_point < (BUF_TRCE1+IN_LEN-1))
+ 151   3            {
+ 152   4              COM1_buf_trce_point++;
+ 153   4              SBUF1=*COM1_buf_trce_point;
+ 154   4      
+ 155   4            }
+ 156   3            else
+ 157   3            {
+ 158   4              Delay_tr();
+ 159   4              OE1=1;
+ 160   4              SCON1 |=0x10;
+ 161   4              netactivetime = 6;
+ 162   4              serviceled = 1;
+ 163   4              
+ 164   4      
+ 165   4            }
+ 166   3          }
+ 167   2        }
+ 168   1        receivetime_1=0;
+ 169   1        TRFLAG=0;
+ 170   1      }
+ 171          
+ 172          
+ 173          
+ 174          void delay_tr()
+ 175          {
+ 176   1        unsigned char j;
+ 177   1        {
+ 178   2          for(j=0;j<10;j++);
+ 179   2      
+C51 COMPILER V9.50a   COMM                                                                 11/12/2013 12:34:03 PAGE 4   
+
+ 180   2         }
+ 181   1      }
+ 182          
+ 183          void trans_data1()
+ 184          {
+ 185   1        unsigned char i,j;
+ 186   1        COM1_buf_trce_point = BUF_TRCE1;
+ 187   1        if((*COM1_buf_trce_point == 0xfa)||(*COM1_buf_trce_point == 0xf5)||(*COM1_buf_trce_point == 0xfc))
+ 188   1        {
+ 189   2          SCON1&=~(0x10);
+ 190   2          OE1 = 0;
+ 191   2                      j=0;
+ 192   2          for(i=0;i<IN_LEN-1;i++)
+ 193   2            j=j+BUF_TRCE1[i];
+ 194   2          j = ~j;
+ 195   2          BUF_TRCE1[IN_LEN-1]=j+1;
+ 196   2          SBUF1 = *COM1_buf_trce_point;
+ 197   2          
+ 198   2        }
+ 199   1      }
+ 200          
+ 201          void set_tranready1()
+ 202          {
+ 203   1        time20ms = time20ms+6;
+ 204   1        tranready_1 =1;
+ 205   1      }
+ 206          
+ 207          void trans_data()
+ 208          {
+ 209   1        //unsigned char i;
+ 210   1        uint16 set_temp;
+ 211   1        COM_buf_point = BUF_RECE;
+ 212   1        REN0 = 0;
+ 213   1        RI0=0;
+ 214   1        OE0 = 0;
+ 215   1        ACC = *COM_buf_point;
+ 216   1        TB80 = P;     //P为偶校验，~p为奇校验
+ 217   1        SBUF0 = *COM_buf_point;
+ 218   1        
+ 219   1        /*
+ 220   1        if(*COM_buf_point == 0x32)
+ 221   1        {
+ 222   1          REN0 = 0;
+ 223   1          OE0 = 0;
+ 224   1              SBUF0 = *COM_buf_point;
+ 225   1        
+ 226   1        } */
+ 227   1      }
+*** WARNING C280 IN LINE 210 OF Comm.C: 'set_temp': unreferenced local variable
+ 228          
+ 229          void set_tranready()
+ 230          {
+ 231   1        time20ms_out = time20ms_out+6;
+ 232   1        tranready =1;
+ 233   1      }
+ 234          
+ 235          
+ 236          void receive_data1()
+ 237          {
+ 238   1        unsigned char data i,j,temp1,temp2,temp3;
+ 239   1              unsigned int data k;
+ 240   1              unsigned char     *eeprom_point;
+C51 COMPILER V9.50a   COMM                                                                 11/12/2013 12:34:03 PAGE 5   
+
+ 241   1          uint16 temp_param;
+ 242   1        
+ 243   1        j=0;
+ 244   1        for(i=0;i<IN_LEN;i++)
+ 245   1          j=j+BUF_RECE1[i];
+ 246   1        if(!j)
+ 247   1        {
+ 248   2          netactivetime = 6;
+ 249   2          serviceled = 1;
+ 250   2          if((BUF_RECE1[0]==0xfa)/*&&(BUF_RECE1[1]==DEVICE_CODE)*/)
+ 251   2          {
+ 252   3            if((BUF_RECE1[2]==box)&&(BUF_RECE1[1]==DEVICE_CODE))
+ 253   3            { j=BUF_RECE1[3];
+ 254   4            
+ 255   4              switch(j)
+ 256   4              {
+ 257   5                case 0xfb:    /* command = read EEPROM */
+ 258   5                {
+ 259   6                  BUF_TRCE1[3]= 0xf9;
+ 260   6                  if(BUF_RECE1[5]||BUF_RECE1[4])
+ 261   6                  {
+ 262   7                    ReadEE((BUF_RECE1[4]*256+BUF_RECE1[5]),1,RTC_BUF);
+ 263   7                    BUF_TRCE1[6]= RTC_BUF[0]; 
+ 264   7                  }
+ 265   6                  else BUF_TRCE1[6]= DEVICE_CODE;
+ 266   6                  BUF_TRCE1[0]= BUF_RECE1[0]; 
+ 267   6                  BUF_TRCE1[1]= BUF_RECE1[1]; 
+ 268   6                  BUF_TRCE1[2]= BUF_RECE1[2]; 
+ 269   6                  BUF_TRCE1[4]= BUF_RECE1[4];
+ 270   6                  BUF_TRCE1[5]= BUF_RECE1[5]; 
+ 271   6                  set_tranready1();
+ 272   6                }
+ 273   5                break;
+ 274   5                case 0xfa:    /* command = Write EEPROM */
+ 275   5                {
+ 276   6                  BUF_TRCE1[3]= 0xf9;
+ 277   6                  
+ 278   6                  RTC_BUF[0]=BUF_RECE1[6];
+ 279   6                  WriteEE((BUF_RECE1[4]*256+BUF_RECE1[5]),1,RTC_BUF);
+ 280   6                  while(ReadEE((BUF_RECE1[4]*256+BUF_RECE1[5]),1,BUF_RECE1));
+ 281   6                  ReadEE((BUF_RECE1[4]*256+BUF_RECE1[5]),1,RTC_BUF);
+ 282   6                  BUF_TRCE1[6]= RTC_BUF[0];
+ 283   6                  BUF_TRCE1[0]= 0xfa; 
+ 284   6                  BUF_TRCE1[1]= BUF_RECE1[1]; 
+ 285   6                  BUF_TRCE1[2]= BUF_RECE1[2]; 
+ 286   6                  BUF_TRCE1[4]= BUF_RECE1[4];
+ 287   6                  BUF_TRCE1[5]= BUF_RECE1[5];
+ 288   6                  set_tranready1();
+ 289   6                      
+ 290   6                }
+ 291   5                break;
+ 292   5                case 0xBA:    /* command = Request ver */
+ 293   5                {
+ 294   6                  BUF_TRCE1[0]= BUF_RECE1[0]; 
+ 295   6                  BUF_TRCE1[1]= BUF_RECE1[1]; 
+ 296   6                  BUF_TRCE1[2]= BUF_RECE1[2]; 
+ 297   6                  BUF_TRCE1[4]= 0xf0;   //VRV air
+ 298   6                  BUF_TRCE1[6]= BUF_RECE1[6];
+ 299   6                  BUF_TRCE1[3]= 0xFE;
+ 300   6                  BUF_TRCE1[5]= ver; 
+ 301   6                  set_tranready1();
+ 302   6                }
+C51 COMPILER V9.50a   COMM                                                                 11/12/2013 12:34:03 PAGE 6   
+
+ 303   5                break;
+ 304   5                case 0xFC:    /* command = Reboot */
+ 305   5                {
+ 306   6                      RSTSRC |=0x10;
+ 307   6                }
+ 308   5                break;
+ 309   5                case 0xFD:    /* command = Listen to me */
+ 310   5                {
+ 311   6                if(BUF_RECE1[5]) setup_mode =1;
+ 312   6                      else setup_mode =0;
+ 313   6                }
+ 314   5                break;  
+ 315   5                case 0xDF:    /* command = enable Block read */
+ 316   5                {
+ 317   6                  BUF_TRCE1[0]= BUF_RECE1[0]; 
+ 318   6                  BUF_TRCE1[1]= BUF_RECE1[1]; 
+ 319   6                  BUF_TRCE1[2]= BUF_RECE1[2]; 
+ 320   6                  BUF_TRCE1[4]= BUF_RECE1[4];
+ 321   6                  BUF_TRCE1[5]= BUF_RECE1[5];
+ 322   6                  BUF_TRCE1[6]= BUF_RECE1[6];
+ 323   6                  BUF_TRCE1[3]=  0xDE;        
+ 324   6                  set_tranready1();
+ 325   6                }
+ 326   5                break;
+ 327   5                case 0xDE:    /* command = Block read */
+ 328   5                {
+ 329   6                  BUF_TRCE1[0]=  0xFC;
+ 330   6                  eeprom_point = &BUF_TRCE1[1];
+ 331   6                  ReadEE((BUF_RECE1[4]*256+BUF_RECE1[5]),6,eeprom_point);
+ 332   6                  set_tranready1();
+ 333   6                }
+ 334   5                break;
+ 335   5                case 0xDD:    /* command = Block writer */
+ 336   5                {
+ 337   6            
+ 338   6                  block_writer = 1;
+ 339   6                  eerom_address = BUF_RECE1[4]*256 + BUF_RECE1[5];
+ 340   6                  //RTC_BUF[0]=BUF_RECE[4];/* Block writer = high */
+ 341   6                  //RTC_BUF[1]=BUF_RECE[5];/* Block writer = low */
+ 342   6                  BUF_TRCE1[0]= BUF_RECE1[0]; 
+ 343   6                  BUF_TRCE1[1]= BUF_RECE1[1]; 
+ 344   6                  BUF_TRCE1[2]= BUF_RECE1[2]; 
+ 345   6                  BUF_TRCE1[4]= BUF_RECE1[4];
+ 346   6                  BUF_TRCE1[5]= BUF_RECE1[5];
+ 347   6                  BUF_TRCE1[6]= BUF_RECE1[6];
+ 348   6                  BUF_TRCE1[3]=  0xDC;
+ 349   6                  set_tranready1();
+ 350   6                }
+ 351   5                break;  
+ 352   5      
+ 353   5                case 0x8f:
+ 354   5                {
+ 355   6      //            处理空调控制命令
+ 356   6                  if(RQ_ST==0)
+ 357   6                  {
+ 358   7                    for(i=0;i<64;i++)
+ 359   7                    {
+ 360   8                      if(air_box_num[i] == BUF_RECE1[2])
+ 361   8                        break;                  
+ 362   8                    }
+ 363   7                    if(i>=64)
+ 364   7                      return;
+C51 COMPILER V9.50a   COMM                                                                 11/12/2013 12:34:03 PAGE 7   
+
+ 365   7      //              process_air_cmd();
+ 366   7                    air_condi_num = i;
+ 367   7                    BUF_TRCE1[0] = BUF_RECE1[0];
+ 368   7                    BUF_TRCE1[1] = BUF_RECE1[1];
+ 369   7                    BUF_TRCE1[2] = BUF_RECE1[2];
+ 370   7                    BUF_TRCE1[3] = 0x9b;
+ 371   7                    BUF_TRCE1[4] = BUF_RECE1[4];
+ 372   7                    BUF_TRCE1[5] = BUF_RECE1[5];
+ 373   7                    if((BUF_RECE1[4] == 0))
+ 374   7                    {               
+ 375   8      //                if(BUF_RECE1[5] != 0)
+ 376   8                      {
+ 377   9                        Modbus_Reg[0] = 0;//开关机状态
+ 378   9                        air_power[i] = 0;
+ 379   9      //                shadow_power[i] =1;
+ 380   9                        Modbus_Reg[1] = 0; //模式
+ 381   9                        air_mode[i] = 0;
+ 382   9                        air_speed[i] = 0;
+ 383   9                        Modbus_Reg[2] = 0; //温度
+ 384   9                        Modbus_Reg[3] = 1;  //风速
+ 385   9                        BUF_TRCE1[5] = (uint8) air_temperature[i];
+ 386   9                        BUF_TRCE1[6] = (uint8) actual_temperature[i];
+ 387   9                      }
+ 388   8                    }
+ 389   7                    else
+ 390   7                    {
+ 391   8                      Modbus_Reg[0] = 1; //开关机状态
+ 392   8                      air_power[i] = 1;
+ 393   8                      j=(BUF_RECE1[4]&0Xf0)>>4;
+ 394   8                      switch(j)
+ 395   8                      {
+ 396   9                        case 1:
+ 397   9                        {
+ 398  10                          Modbus_Reg[3] = 5;  //风速低
+ 399  10                          break;
+ 400  10                        }
+ 401   9                        case 2:
+ 402   9                        {
+ 403  10                          Modbus_Reg[3] = 4;  //风速中
+ 404  10                          break;
+ 405  10                        }                 
+ 406   9                        case 3:
+ 407   9                        {
+ 408  10                          Modbus_Reg[3] = 3;  //风速高
+ 409  10                          break;
+ 410  10                        }       
+ 411   9                        default:
+ 412   9                        {
+ 413  10                          Modbus_Reg[3] = 2;  //风速自动
+ 414  10                          break;
+ 415  10                        }
+ 416   9                      }
+ 417   8                      air_speed[i] = 0;
+ 418   8                      j = BUF_RECE1[4]&0x0f;
+ 419   8                      switch(j)
+ 420   8                      {
+ 421   9                        case 1:
+ 422   9                        {
+ 423  10      
+ 424  10                          Modbus_Reg[1] = 4; //模式：送风
+ 425  10                          air_mode[i] = 4;
+ 426  10                          break;
+C51 COMPILER V9.50a   COMM                                                                 11/12/2013 12:34:03 PAGE 8   
+
+ 427  10                        }
+ 428   9                        case 2:
+ 429   9                        {
+ 430  10                          Modbus_Reg[1] = 2; //模式：制冷
+ 431  10                          air_mode[i] = 2;
+ 432  10                          break;                  
+ 433  10                        }
+ 434   9                        case 3:
+ 435   9                        {
+ 436  10                          Modbus_Reg[1] = 1; //模式：制热
+ 437  10                          air_mode[i] = 1 ;
+ 438  10                          break;                  
+ 439  10                        }
+ 440   9                        default:
+ 441   9                        {
+ 442  10                          Modbus_Reg[1] = 5; //模式：自动
+ 443  10                          air_mode[i] = 5;
+ 444  10                        }                   
+ 445   9                      }
+ 446   8                      BUF_RECE1[5] &= (~0XC0);
+ 447   8                      if(BUF_RECE1[5]>30)
+ 448   8                      {
+ 449   9      //                  break;
+ 450   9                        Modbus_Reg[2] = 30; //温度
+ 451   9                        air_temperature[i] = 30;   
+ 452   9                      }
+ 453   8                      else if(BUF_RECE1[5]<16)
+ 454   8                      {
+ 455   9      //                  break;
+ 456   9                        Modbus_Reg[2] = 16; //温度
+ 457   9                        air_temperature[i] = 16;
+ 458   9                      }
+ 459   8                      else
+ 460   8                      {
+ 461   9                        Modbus_Reg[2] = BUF_RECE1[5];
+ 462   9                        air_temperature[i] =  Modbus_Reg[5];
+ 463   9                      }
+ 464   8                    BUF_TRCE1[6] = (uint8) actual_temperature[i];
+ 465   8                    }
+ 466   7      //              set_tranready1();
+ 467   7                    if(BUF_RECE1[5]!=0)
+ 468   7                    {
+ 469   8                      status_ctrl =1;
+ 470   8                      RQ_ST = 1;
+ 471   8                    }
+ 472   7                  }
+ 473   6                  break;            
+ 474   6                }
+ 475   5      
+ 476   5                case 0x9c:
+ 477   5                {
+ 478   6      //            处理空调查询命令，返回模式，温度，设置温度和实际温度
+ 479   6                  for(i=0;i<64;i++)
+ 480   6                  {
+ 481   7                    if(air_box_num[i] == box)
+ 482   7                      break;                
+ 483   7                  }
+ 484   6                  if(i>=64)
+ 485   6                    return;
+ 486   6                  BUF_TRCE1[0] = BUF_RECE1[0];
+ 487   6                  BUF_TRCE1[1] = BUF_RECE1[1];
+ 488   6                  BUF_TRCE1[2] = BUF_RECE1[2];
+C51 COMPILER V9.50a   COMM                                                                 11/12/2013 12:34:03 PAGE 9   
+
+ 489   6                  BUF_TRCE1[3] = 0x9b;
+ 490   6                  if(air_power[i] ==0)
+ 491   6                    BUF_TRCE1[4] = 0;
+ 492   6                  else
+ 493   6                  {
+ 494   7                    switch(air_mode[i])
+ 495   7                    {
+ 496   8                      case 0:
+ 497   8                        BUF_TRCE1[4] = 0;
+ 498   8                        break;
+ 499   8                      case 1:
+ 500   8                        BUF_TRCE1[4] |= 1;
+ 501   8                        break;
+ 502   8                      case 2:
+ 503   8                        BUF_TRCE1[4] |= 2;
+ 504   8                        break;
+ 505   8                      case 3:
+ 506   8                        BUF_TRCE1[4] |= 3;
+ 507   8                        break;
+ 508   8                      default:
+ 509   8                        BUF_TRCE1[4] =0;
+ 510   8                        break;                    
+ 511   8                    }
+ 512   7                    BUF_TRCE1[4] |= (air_speed[i]<<4);
+ 513   7                  }
+ 514   6                  BUF_TRCE1[5] = (uint8) air_temperature[i];
+ 515   6                  BUF_TRCE1[6] = (uint8) actual_temperature[i] ;
+ 516   6                  set_tranready1();
+ 517   6                  break;
+ 518   6                }
+ 519   5                default:break;
+ 520   5              
+ 521   5              }
+ 522   4            }
+ 523   3            else 
+ 524   3              if(BUF_RECE1[1]==0xb8/*DEVICE_CODE*/)
+ 525   3              {
+ 526   4      //          处理空调命令
+ 527   4                if(BUF_RECE1[3] == 0X8F)
+ 528   4                {
+ 529   5                  if(RQ_ST==0)
+ 530   5                  {
+ 531   6                    for(i=0;i<64;i++)
+ 532   6                    {
+ 533   7                      if(air_box_num[i] == BUF_RECE1[2])
+ 534   7                        break;                  
+ 535   7                    }
+ 536   6                    if(i>=64)
+ 537   6                      return;
+ 538   6      //              process_air_cmd();
+ 539   6                    air_condi_num = i;
+ 540   6                    BUF_TRCE1[0] = BUF_RECE1[0];
+ 541   6                    BUF_TRCE1[1] = BUF_RECE1[1];
+ 542   6                    BUF_TRCE1[2] = BUF_RECE1[2];
+ 543   6                    BUF_TRCE1[3] = 0x9b;
+ 544   6                    BUF_TRCE1[4] = BUF_RECE1[4];
+ 545   6                    BUF_TRCE1[5] = BUF_RECE1[5];
+ 546   6                    if(BUF_RECE1[4] == 0)
+ 547   6                    {               
+ 548   7                      Modbus_Reg[0] = 0;//开关机状态
+ 549   7                      air_power[i] = 0;
+ 550   7      //                shadow_power[i] =1;
+C51 COMPILER V9.50a   COMM                                                                 11/12/2013 12:34:03 PAGE 10  
+
+ 551   7                      Modbus_Reg[1] = 0; //模式
+ 552   7                      air_mode[i] = 0;
+ 553   7                      air_speed[i] = 0;
+ 554   7                      Modbus_Reg[2] = 0; //温度
+ 555   7                      Modbus_Reg[3] = 1;  //风速
+ 556   7                      BUF_TRCE1[5] = (uint8) air_temperature[i];
+ 557   7                      BUF_TRCE1[6] = (uint8) actual_temperature[i];
+ 558   7                    }
+ 559   6                    else
+ 560   6                    {
+ 561   7                      Modbus_Reg[0] = 1; //开关机状态
+ 562   7                      air_power[i] = 1;
+ 563   7                      j=(BUF_RECE1[4]&0Xf0)>>4;
+ 564   7                      switch(j)
+ 565   7                      {
+ 566   8                        case 1:
+ 567   8                        {
+ 568   9                          Modbus_Reg[3] = 5;  //风速低
+ 569   9                          break;
+ 570   9                        }
+ 571   8                        case 2:
+ 572   8                        {
+ 573   9                          Modbus_Reg[3] = 4;  //风速中
+ 574   9                          break;
+ 575   9                        }                 
+ 576   8                        case 3:
+ 577   8                        {
+ 578   9                          Modbus_Reg[3] = 3;  //风速低
+ 579   9                          break;
+ 580   9                        }       
+ 581   8                        default:
+ 582   8                        {
+ 583   9                          Modbus_Reg[3] = 2;  //风速自动
+ 584   9                          break;
+ 585   9                        }
+ 586   8                      }
+ 587   7                      air_speed[i] = 0;
+ 588   7                      j = BUF_RECE1[4]&0x0f;
+ 589   7                      switch(j)
+ 590   7                      {
+ 591   8                        case 1:
+ 592   8                        {
+ 593   9      
+ 594   9                          Modbus_Reg[1] = 4; //模式：送风
+ 595   9                          air_mode[i] = 4;
+ 596   9                          break;
+ 597   9                        }
+ 598   8                        case 2:
+ 599   8                        {
+ 600   9                          Modbus_Reg[1] = 2; //模式：制冷
+ 601   9                          air_mode[i] = 2;
+ 602   9                          break;                  
+ 603   9                        }
+ 604   8                        case 3:
+ 605   8                        {
+ 606   9                          Modbus_Reg[1] = 1; //模式：制热
+ 607   9                          air_mode[i] = 1 ;
+ 608   9                          break;                  
+ 609   9                        }
+ 610   8                        default:
+ 611   8                        {
+ 612   9                          Modbus_Reg[1] = 5; //模式：自动
+C51 COMPILER V9.50a   COMM                                                                 11/12/2013 12:34:03 PAGE 11  
+
+ 613   9                          air_mode[i] = 5;
+ 614   9                        }
+ 615   8                          
+ 616   8                      }
+ 617   7                      BUF_RECE1[5] &= (~0X80);
+ 618   7                      if(BUF_RECE1[5]>30)
+ 619   7                      {
+ 620   8                        Modbus_Reg[2] = 30; //温度
+ 621   8                        air_temperature[i] = 30;   
+ 622   8                      }
+ 623   7                      else if(BUF_RECE1[5]<16)
+ 624   7                      {
+ 625   8                        Modbus_Reg[2] = 16; //温度
+ 626   8                        air_temperature[i] = 16;
+ 627   8                      }
+ 628   7                      else
+ 629   7                      {
+ 630   8                        Modbus_Reg[2] = BUF_RECE1[5];
+ 631   8                        air_temperature[i] =  Modbus_Reg[5];
+ 632   8                      }
+ 633   7                    //  BUF_TRCE1[5] = BUF_RECE1[5];
+ 634   7                      BUF_TRCE1[6] = (uint8) actual_temperature[i];
+ 635   7                    }
+ 636   6      //              set_tranready1();
+ 637   6                    if(BUF_RECE1[5] !=0)
+ 638   6                    {
+ 639   7                      status_ctrl =1;
+ 640   7                      RQ_ST = 1;
+ 641   7                    }
+ 642   6                  }
+ 643   5                }
+ 644   4                else
+ 645   4                {
+ 646   5      //            应答空调查询命令
+ 647   5                  if(BUF_RECE1[3] == 0X9C)
+ 648   5                  {
+ 649   6                    for(i=0;i<64;i++)
+ 650   6                    {
+ 651   7                      if(air_box_num[i] == BUF_RECE1[2])
+ 652   7                        break;                
+ 653   7                    }
+ 654   6                    if(i>=64)
+ 655   6                      return;
+ 656   6                    BUF_TRCE1[0] = BUF_RECE1[0];
+ 657   6                    BUF_TRCE1[1] = BUF_RECE1[1];
+ 658   6                    BUF_TRCE1[2] = BUF_RECE1[2];
+ 659   6                    BUF_TRCE1[3] = 0x9b;
+ 660   6                    if(air_power[i] ==0)
+ 661   6                      BUF_TRCE1[4] = 0;
+ 662   6                    else
+ 663   6                    {
+ 664   7                      switch(air_mode[i])
+ 665   7                      {
+ 666   8                        case 0:
+ 667   8                          BUF_TRCE1[4] = 0;
+ 668   8                          break;
+ 669   8                        case 1:
+ 670   8                          BUF_TRCE1[4] |= 1;
+ 671   8                          break;
+ 672   8                        case 2:
+ 673   8                          BUF_TRCE1[4] |= 2;
+ 674   8                          break;
+C51 COMPILER V9.50a   COMM                                                                 11/12/2013 12:34:03 PAGE 12  
+
+ 675   8                        case 3:
+ 676   8                          BUF_TRCE1[4] |= 3;
+ 677   8                          break;
+ 678   8                        default:
+ 679   8                          BUF_TRCE1[4] =0;
+ 680   8                          break;                    
+ 681   8                      }
+ 682   7                      BUF_TRCE1[4] |= (air_speed[i]<<4);
+ 683   7                    }
+ 684   6                    BUF_TRCE1[5] = (uint8) air_temperature[i];
+ 685   6                    BUF_TRCE1[6] = (uint8) actual_temperature[i] ;
+ 686   6                    set_tranready1();
+ 687   6                  }
+ 688   5                }
+ 689   4              }
+ 690   3      
+ 691   3          }
+ 692   2          else
+ 693   2          { 
+ 694   3            if((BUF_RECE1[0]==0xf5)&&(BUF_RECE1[3]==0xFE))
+ 695   3            {
+ 696   4          
+ 697   4            } 
+ 698   3            else
+ 699   3            {
+ 700   4              if((BUF_RECE1[0]== 0xfc)&& block_writer)
+ 701   4              { 
+ 702   5                eeprom_point = &BUF_RECE1[1];
+ 703   5                i = eerom_address % 256;
+ 704   5                j = i-(i >> 4)*16+5;
+ 705   5                if(j<16)
+ 706   5                        WriteEE(eerom_address,6,eeprom_point);
+ 707   5                      else
+ 708   5                      {
+ 709   6                        i= j-15;
+ 710   6                        j = 6-i;
+ 711   6                        WriteEE(eerom_address,j,eeprom_point);
+ 712   6                          
+ 713   6                  while(ReadEE(eerom_address,1,BUF_RECE1));
+ 714   6                                                      
+ 715   6                        k = eerom_address +j;
+ 716   6                        eeprom_point =eeprom_point +j;
+ 717   6                        WriteEE(k,i,eeprom_point);
+ 718   6                          
+ 719   6                
+ 720   6                      }   
+ 721   5                BUF_TRCE1[0]= 0xFA;
+ 722   5                BUF_TRCE1[1]= DEVICE_CODE;
+ 723   5                BUF_TRCE1[2]= box;
+ 724   5                BUF_TRCE1[3]=0xdc;
+ 725   5                BUF_TRCE1[4]=eerom_address/256;
+ 726   5                BUF_TRCE1[5]=eerom_address%256;
+ 727   5                BUF_TRCE1[6]= 0;  
+ 728   5                eerom_address = eerom_address +6;
+ 729   5                set_tranready1();
+ 730   5              }
+ 731   4                
+ 732   4            }
+ 733   3          }
+ 734   2      
+ 735   2      
+ 736   2        }
+C51 COMPILER V9.50a   COMM                                                                 11/12/2013 12:34:03 PAGE 13  
+
+ 737   1      }
+*** WARNING C280 IN LINE 238 OF Comm.C: 'temp1': unreferenced local variable
+*** WARNING C280 IN LINE 238 OF Comm.C: 'temp2': unreferenced local variable
+*** WARNING C280 IN LINE 238 OF Comm.C: 'temp3': unreferenced local variable
+*** WARNING C280 IN LINE 241 OF Comm.C: 'temp_param': unreferenced local variable
+ 738          
+ 739          /*
+ 740          void receive_data()
+ 741          {
+ 742            unsigned char data i;
+ 743                  
+ 744            if((BUF_RECE[1]==0x34)&&(BUF_RECE[2]==0x30)&&(BUF_RECE[3]==0x30))
+ 745            { //400 返回命令
+ 746              if(resend_msg_buf[4]==2) i=2;
+ 747              else  if(resend_msg_buf[4]==1) i=1;
+ 748                else  i=0;
+ 749              
+ 750              returne_air_mode[i] = BUF_RECE[7]-0x30; //0=fan 1= hot 2=cool
+ 751              returne_set_temperature[i] = (BUF_RECE[23]-0x30)*10+BUF_RECE[24]-0x30;
+ 752              returne_temperature[i]  =(BUF_RECE[26]-0x30)*10+BUF_RECE[27]-0x30;
+ 753              returne_fan1_speed[i]   =BUF_RECE[28]-0x30;
+ 754              returne_fan2_speed[i] =BUF_RECE[29]-0x30;   
+ 755            
+ 756            }
+ 757                  else 
+ 758            { if((BUF_RECE[1]==0x41)&&(BUF_RECE[2]==0x54)&&(BUF_RECE[4]==0x21))
+ 759              { //ATX 命令
+ 760                if(BUF_RECE[2]==0x30)
+ 761                {
+ 762          
+ 763                }
+ 764                else
+ 765                {
+ 766                  if(BUF_RECE[2]==0x31)
+ 767                  {
+ 768          
+ 769                  }
+ 770                  else
+ 771                  {
+ 772                          if(BUF_RECE[2]==0x32)
+ 773                    {
+ 774          
+ 775                    }
+ 776                    else
+ 777                    {
+ 778          
+ 779                    }
+ 780                  }
+ 781                }
+ 782              }
+ 783                          else  
+ 784              { if((BUF_RECE[1]==0x36)&&(BUF_RECE[3]==0x30)&&(BUF_RECE[4]==0x03))
+ 785                            {   if(BUF_RECE[2]==0x30)
+ 786                  { //600 返回命令
+ 787                    if((resend_msg_buf[1]==0x36)&&(resend_msg_buf[2]==0x30)&&(resend_msg_buf[3]==0x30))
+ 788                      resend_msg =0;
+ 789                  }
+ 790                                  else  
+ 791                  { if(BUF_RECE[2]==0x31)
+ 792                    { //610 返回命令
+ 793                      if((resend_msg_buf[1]==0x36)&&(resend_msg_buf[2]==0x31)&&(resend_msg_buf[3]==0x30))
+ 794                        resend_msg =0;
+C51 COMPILER V9.50a   COMM                                                                 11/12/2013 12:34:03 PAGE 14  
+
+ 795                    }
+ 796                                      else
+ 797                    { if(BUF_RECE[2]==0x32)
+ 798                      { //620 返回命令
+ 799                        if((resend_msg_buf[1]==0x36)&&(resend_msg_buf[2]==0x32)&&(resend_msg_buf[3]==0x30))
+ 800                          resend_msg =0;
+ 801                      }
+ 802                                              else 
+ 803                      { if(BUF_RECE[2]==0x33)
+ 804                        { //630 返回命令
+ 805                          if((resend_msg_buf[1]==0x36)&&(resend_msg_buf[2]==0x33)&&(resend_msg_buf[3]==0x30))
+ 806                            resend_msg =0;
+ 807          
+ 808                        }
+ 809                                                  else 
+ 810                        { if(BUF_RECE[2]==0x34)
+ 811                          { //640 返回命令
+ 812                            if((resend_msg_buf[1]==0x36)&&(resend_msg_buf[2]==0x34)&&(resend_msg_buf[3]==0x30))
+ 813                              resend_msg =0;
+ 814                          }
+ 815                        }
+ 816                      }
+ 817                    }
+ 818                  }
+ 819                }
+ 820              }
+ 821            }
+ 822          }
+ 823          */
+ 824          /*
+ 825          void send_BUF_TRAN()
+ 826          { 
+ 827          //  uchar data i,j;
+ 828            if(OE1)
+ 829            {
+ 830            /*  for( i=0; i< keynumber_all; i++)
+ 831              {
+ 832                j = BUF_TRAN[ i* 7];
+ 833                if((j == 0xfa)||(j == 0xf5)||(j == 0xfc))
+ 834                {
+ 835                  BUF_RECE1[0] = j;
+ 836                  BUF_TRAN[ i* 7] = 0xff;
+ 837                  for( j = 1;j < 7; j++) 
+ 838                    BUF_RECE1[j] = BUF_TRAN[ i* 7+j];
+ 839                  set_tranready1();
+ 840                  i = keynumber_all + 2;
+ 841                }
+ 842              }
+ 843                            
+ 844            }
+ 845                  
+ 846          }
+ 847          */
+ 848          
+ 849          
+ 850          void resend_msg_proc()
+ 851          {
+ 852   1        resend_msg_sec = 10;
+ 853   1        resend_msg_counter = 2;
+ 854   1        resend_msg = 1;
+ 855   1        for(temp=0;temp < 7;temp++)
+ 856   1          resend_msg_buf[temp] = BUF_RECE[temp];
+C51 COMPILER V9.50a   COMM                                                                 11/12/2013 12:34:03 PAGE 15  
+
+ 857   1        set_tranready();
+ 858   1      }
+ 859          
+ 860          
+ 861          
+ 862          
+ 863          
+ 864                  
+ 865          
+ 866                
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =   2545    ----
+   CONSTANT SIZE    =   ----    ----
+   XDATA SIZE       =      3    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =   ----      12
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  5 WARNING(S),  0 ERROR(S)
